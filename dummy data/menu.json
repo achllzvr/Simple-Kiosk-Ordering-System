@@ -1,0 +1,183 @@
+[
+    {
+        "id": 1,
+        "name": "Crispy Chicken Bucket",
+        "price": 599,
+        "image": "https://cdn.tictuk.com/04d917c0-7bcd-6ced-acad-3e4db2bcbfd5/menus/BUCK10.jpg",
+        "description": "Delicious crispy fried chicken bucket",
+        "variations": [
+            {
+                "name": "4 Pieces",
+                "price": 0
+            },
+            {
+                "name": "6 Pieces",
+                "price": 200
+            },
+            {
+                "name": "8 Pieces",
+                "price": 400
+            }
+        ],
+        "addons": [
+            {
+                "name": "Coleslaw",
+                "price": 80
+            },
+            {
+                "name": "Mashed Potatoes",
+                "price": 100
+            },
+            {
+                "name": "Gravy",
+                "price": 50
+            }
+        ]
+    },
+    {
+        "id": 2,
+        "name": "Zinger Burger",
+        "price": 220,
+        "image": "https://cdn.tictuk.com/04d917c0-7bcd-6ced-acad-3e4db2bcbfd5/menus/ZNGR.jpg",
+        "description": "Spicy zinger burger with fresh lettuce",
+        "variations": [
+            {
+                "name": "Single",
+                "price": 0
+            },
+            {
+                "name": "Double",
+                "price": 150
+            }
+        ],
+        "addons": [
+            {
+                "name": "Extra Cheese",
+                "price": 50
+            },
+            {
+                "name": "Bacon",
+                "price": 80
+            },
+            {
+                "name": "Extra Sauce",
+                "price": 30
+            }
+        ]
+    },
+    {
+        "id": 3,
+        "name": "Chicken Tenders",
+        "price": 180,
+        "image": "https://images.ctfassets.net/a2mgcrjjefyo/1cIgQd9Th6fXV3P94jPd18/1a25c7a5cc1fb18e56665157afea44f9/OriginalRecipeBucket_10pc_3dips_8282_1600x1600.png?fm=webp&fit=fill",
+        "description": "Tender crispy chicken strips",
+        "variations": [
+            {
+                "name": "3 Pieces",
+                "price": 0
+            },
+            {
+                "name": "5 Pieces",
+                "price": 120
+            },
+            {
+                "name": "7 Pieces",
+                "price": 200
+            }
+        ],
+        "addons": [
+            {
+                "name": "BBQ Sauce",
+                "price": 40
+            },
+            {
+                "name": "Ranch Dip",
+                "price": 50
+            },
+            {
+                "name": "Sweet Chili",
+                "price": 40
+            }
+        ]
+    },
+    {
+        "id": 4,
+        "name": "Fried Rice Bowl",
+        "price": 250,
+        "image": "https://cdn.tictuk.com/04d917c0-7bcd-6ced-acad-3e4db2bcbfd5/menus/RBSISIG.jpg",
+        "description": "Delicious fried rice with chicken",
+        "variations": [
+            {
+                "name": "Regular",
+                "price": 0
+            },
+            {
+                "name": "Large",
+                "price": 100
+            }
+        ],
+        "addons": [
+            {
+                "name": "Extra Chicken",
+                "price": 120
+            },
+            {
+                "name": "Egg",
+                "price": 60
+            },
+            {
+                "name": "Green Peas",
+                "price": 40
+            }
+        ]
+    },
+    {
+        "id": 5,
+        "name": "Soft Drink",
+        "price": 50,
+        "image": "https://cdn.tictuk.com/04d917c0-7bcd-6ced-acad-3e4db2bcbfd5/menus/COKE-R.jpg",
+        "description": "Refreshing cold beverage",
+        "variations": [
+            {
+                "name": "Small (250ml)",
+                "price": 0
+            },
+            {
+                "name": "Medium (400ml)",
+                "price": 20
+            },
+            {
+                "name": "Large (600ml)",
+                "price": 40
+            }
+        ],
+        "addons": []
+    },
+    {
+        "id": 6,
+        "name": "Chocolate Lava Cake",
+        "price": 199,
+        "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQyE3Jc4Ai5OtwCHrV0dnyLOvBttQmeCYDCqg&s",
+        "description": "Warm chocolate lava cake dessert",
+        "variations": [
+            {
+                "name": "1 Piece",
+                "price": 0
+            },
+            {
+                "name": "2 Pieces",
+                "price": 150
+            }
+        ],
+        "addons": [
+            {
+                "name": "Vanilla Ice Cream",
+                "price": 80
+            },
+            {
+                "name": "Chocolate Sprinkles",
+                "price": 40
+            }
+        ]
+    }
+]
