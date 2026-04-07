@@ -550,11 +550,27 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <div class="ms-auto">
-                    @if(Request::routeIs('ordering.menu', 'ordering.cart', 'ordering.checkout'))
-                        <a class="nav-link" href="{{ route('ordering.cart', ['mode' => request()->query('mode', 'dine-in')]) }}">
-                            🛒 Cart
-                        </a>
-                    @endif
+                    @auth
+                        <a class="nav-link d-inline-block" href="{{ route('ordering.selection') }}">Ordering</a>
+                        @if(auth()->user()->isAdmin())
+                            <a class="nav-link d-inline-block" href="{{ route('users.index') }}">Users</a>
+                            <a class="nav-link d-inline-block" href="{{ route('admin.orders') }}">Orders</a>
+                        @endif
+
+                        @if(Request::routeIs('ordering.menu', 'ordering.cart', 'ordering.checkout'))
+                            <a class="nav-link d-inline-block" href="{{ route('ordering.cart', ['mode' => request()->query('mode', 'dine-in')]) }}">
+                                🛒 Cart
+                            </a>
+                        @endif
+
+                        <form method="POST" action="{{ route('logout') }}" class="d-inline-block ms-2">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-light">Logout</button>
+                        </form>
+                    @else
+                        <a class="nav-link d-inline-block" href="{{ route('login') }}">Login</a>
+                        <a class="nav-link d-inline-block" href="{{ route('register') }}">Register</a>
+                    @endauth
                 </div>
             </div>
         </div>

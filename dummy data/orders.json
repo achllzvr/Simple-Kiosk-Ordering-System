@@ -25,7 +25,7 @@
             }
         ],
         "created_at": "2026-03-27 05:11:44",
-        "status": "placed"
+        "status": "preparing"
     },
     {
         "order_id": "ORD995967",
@@ -44,7 +44,7 @@
             }
         ],
         "created_at": "2026-03-27 05:15:47",
-        "status": "placed"
+        "status": "ready"
     },
     {
         "order_id": "ORD514622",
@@ -63,7 +63,7 @@
             }
         ],
         "created_at": "2026-03-27 05:20:56",
-        "status": "placed"
+        "status": "completed"
     },
     {
         "order_id": "ORD473614",
@@ -80,6 +80,34 @@
             }
         ],
         "created_at": "2026-03-27 05:27:24",
-        "status": "placed"
+        "status": "completed"
+    },
+    {
+        "order_id": "ORD102818",
+        "mode": "dine-in",
+        "payment_method": "credit_card",
+        "address": "unavailable",
+        "items": [
+            {
+                "itemId": "3",
+                "variation": "3 Pieces",
+                "addons": [
+                    "BBQ Sauce"
+                ],
+                "quantity": 1,
+                "price": 220
+            },
+            {
+                "itemId": "6",
+                "variation": "1 Piece",
+                "addons": [
+                    "Vanilla Ice Cream"
+                ],
+                "quantity": 1,
+                "price": 279
+            }
+        ],
+        "created_at": "2026-04-07 05:32:18",
+        "status": "completed"
     }
 ]
