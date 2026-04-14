@@ -62,6 +62,8 @@ class OrderingController extends Controller
                 'category' => $item->category,
                 'price' => (float)$item->price,
                 'image' => $item->image,
+                'variations' => [],
+                'addons' => [],
             ];
         })->toArray();
 
@@ -300,6 +302,8 @@ class OrderingController extends Controller
         $itemId = $request->input('item_id');
         $quantity = $request->input('quantity', 1);
         $mode = $request->input('mode', 'dine-in');
+        $variation = $request->input('variation', null);
+        $addons = $request->input('addons', []);
 
         $items = $this->readJsonFile($userId, 'menu.json', []);
         $item = array_values(array_filter($items, fn($i) => (int)$i['id'] === (int)$itemId))[0] ?? null;
@@ -313,6 +317,8 @@ class OrderingController extends Controller
             'itemId' => $itemId,
             'quantity' => (int)$quantity,
             'price' => (float)$item['price'],
+            'variation' => $variation,
+            'addons' => is_array($addons) ? $addons : [],
         ];
         $this->writeJsonFile($userId, 'cart.json', $cart);
 

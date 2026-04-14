@@ -30,13 +30,13 @@
                                 <div class="col-md-6">
                                     <h5 class="kfc-text-red fw-bold mb-3">{{ $item['itemName'] }}</h5>
                                     
-                                    @if($item['variation'])
+                                    @if(isset($item['variation']) && $item['variation'])
                                         <p class="small mb-2 text-muted">
                                             <strong>Variation:</strong> {{ $item['variation'] }}
                                         </p>
                                     @endif
 
-                                    @if(count($item['addons']) > 0)
+                                    @if(isset($item['addons']) && count($item['addons']) > 0)
                                         <p class="small mb-2 text-muted">
                                             <strong>Add-ons:</strong> {{ implode(', ', $item['addons']) }}
                                         </p>
