@@ -553,8 +553,12 @@
                     @auth
                         <a class="nav-link d-inline-block" href="{{ route('ordering.selection') }}">Ordering</a>
                         @if(auth()->user()->isAdmin())
+                            <a class="nav-link d-inline-block" href="{{ route('admin.dashboard') }}">Dashboard</a>
                             <a class="nav-link d-inline-block" href="{{ route('users.index') }}">Users</a>
+                            <a class="nav-link d-inline-block" href="{{ route('admin.menu.index') }}">Menu</a>
                             <a class="nav-link d-inline-block" href="{{ route('admin.orders') }}">Orders</a>
+                        @else
+                            <a class="nav-link d-inline-block" href="{{ route('customer.orders') }}">My Orders</a>
                         @endif
 
                         @if(Request::routeIs('ordering.menu', 'ordering.cart', 'ordering.checkout'))

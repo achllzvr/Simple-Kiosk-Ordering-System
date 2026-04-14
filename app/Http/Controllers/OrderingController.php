@@ -2,18 +2,36 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MenuItem;
+use App\Models\Order;
+use App\Models\OrderItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class OrderingController extends Controller
 {
-    private function getDummyDataPath(string $fileName): string
+    private function getCustomerDataPath(int $userId, string $fileName): string
     {
-        return base_path('dummy data/' . $fileName);
+        return base_path('customer_data/' . $userId . '/' . $fileName);
     }
 
-    private function readJsonFile(string $fileName, array $fallback = []): array
+    private function getCustomerDataDir(int $userId): string
     {
-        $path = $this->getDummyDataPath($fileName);
+        return base_path('customer_data/' . $userId);
+    }
+
+    private function ensureCustomerDataDir(int $userId): void
+    {
+        $dir = $this->getCustomerDataDir($userId);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+    }
+
+    private function readJsonFile(int $userId, string $fileName, array $fallback = []): array
+    {
+        $this->ensureCustomerDataDir($userId);
+        $path = $this->getCustomerDataPath($userId, $fileName);
 
         if (!file_exists($path)) {
             file_put_contents($path, json_encode($fallback, JSON_PRETTY_PRINT));
@@ -26,10 +44,28 @@ class OrderingController extends Controller
         return is_array($decoded) ? $decoded : $fallback;
     }
 
-    private function writeJsonFile(string $fileName, array $data): void
+    private function writeJsonFile(int $userId, string $fileName, array $data): void
     {
-        $path = $this->getDummyDataPath($fileName);
+        $this->ensureCustomerDataDir($userId);
+        $path = $this->getCustomerDataPath($userId, $fileName);
         file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT));
+    }
+
+    private function syncMenuFromDatabase(int $userId): void
+    {
+        $items = MenuItem::where('is_active', true)->get();
+        $menuData = $items->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'name' => $item->name,
+                'description' => $item->description,
+                'category' => $item->category,
+                'price' => (float)$item->price,
+                'image' => $item->image,
+            ];
+        })->toArray();
+
+        $this->writeJsonFile($userId, 'menu.json', $menuData);
     }
 
     private function getMenuItems()
@@ -67,32 +103,44 @@ class OrderingController extends Controller
 
     public function menu(Request $request)
     {
+        $userId = Auth::id();
         $mode = $request->query('mode', 'dine-in');
         $search = $request->query('search', '');
-        $items = $this->getMenuItems();
-        $hasCart = count($this->getCartItemsFromFile()) > 0;
-        $cartSubtotal = $this->calculateCartSubtotal();
 
+        // Sync menu from DB
+        $this->syncMenuFromDatabase($userId);
+
+        $items = $this->readJsonFile($userId, 'menu.json', []);
+        $cart = $this->readJsonFile($userId, 'cart.json', []);
+
+        // Filter by search
         if ($search) {
             $items = array_filter($items, function ($item) use ($search) {
-                return stripos($item['name'], $search) !== false;
+                return stripos($item['name'], $search) !== false || stripos($item['description'] ?? '', $search) !== false;
             });
+        }
+
+        // Calculate cart totals
+        $subtotal = 0;
+        foreach ($cart as $cartItem) {
+            $subtotal += $cartItem['price'] * $cartItem['quantity'];
         }
 
         return view('ordering.menu', [
             'items' => array_values($items),
             'mode' => $mode,
             'search' => $search,
-            'hasCart' => $hasCart,
-            'cartSubtotal' => $cartSubtotal
+            'hasCart' => count($cart) > 0,
+            'cartSubtotal' => $subtotal,
         ]);
     }
 
     public function cart(Request $request)
     {
+        $userId = Auth::id();
         $mode = $request->query('mode', 'dine-in');
-        $cart = $this->getCartItemsFromFile();
-        $items = $this->getMenuItems();
+        $cart = $this->readJsonFile($userId, 'cart.json', []);
+        $items = $this->readJsonFile($userId, 'menu.json', []);
 
         // Calculate totals
         $subtotal = 0;
@@ -105,41 +153,41 @@ class OrderingController extends Controller
                 $cartItems[] = array_merge($cartItem, [
                     'total' => $itemTotal,
                     'itemName' => $item['name'],
-                    'cartIndex' => $cartIndex
+                    'cartIndex' => $cartIndex,
                 ]);
             }
         }
 
-        $serviceFee = 0;
         $tax = floor($subtotal * 0.1); // 10% tax
-        $total = $subtotal + $serviceFee + $tax;
+        $total = $subtotal + $tax;
         $cartCount = count($cartItems);
 
         return view('ordering.cart', [
             'cartItems' => $cartItems,
             'subtotal' => $subtotal,
             'tax' => $tax,
-            'serviceFee' => $serviceFee,
+            'serviceFee' => 0,
             'total' => $total,
             'mode' => $mode,
             'cartSubtotal' => $subtotal,
-            'cartCount' => $cartCount
+            'cartCount' => $cartCount,
         ]);
     }
 
     public function updateCartQuantity(Request $request)
     {
+        $userId = Auth::id();
         $request->validate([
             'cart_index' => 'required|integer|min:0',
             'action' => 'required|in:increase,decrease,set,remove',
             'quantity' => 'nullable|integer|min:1|max:99',
-            'mode' => 'nullable|in:dine-in,take-out'
+            'mode' => 'nullable|in:dine-in,take-out',
         ]);
 
         $cartIndex = (int)$request->input('cart_index');
         $action = $request->input('action');
         $mode = $request->input('mode', 'dine-in');
-        $cart = $this->getCartItemsFromFile();
+        $cart = $this->readJsonFile($userId, 'cart.json', []);
 
         if (!isset($cart[$cartIndex])) {
             return redirect()->route('ordering.cart', ['mode' => $mode])->with('error', 'Cart item not found.');
@@ -147,7 +195,7 @@ class OrderingController extends Controller
 
         if ($action === 'remove') {
             unset($cart[$cartIndex]);
-            $this->saveCartItemsToFile(array_values($cart));
+            $this->writeJsonFile($userId, 'cart.json', array_values($cart));
             return redirect()->route('ordering.cart', ['mode' => $mode])->with('success', 'Item removed from cart.');
         }
 
@@ -163,7 +211,7 @@ class OrderingController extends Controller
         }
 
         $cart[$cartIndex]['quantity'] = $newQuantity;
-        $this->saveCartItemsToFile($cart);
+        $this->writeJsonFile($userId, 'cart.json', $cart);
 
         return redirect()->route('ordering.cart', ['mode' => $mode])->with('success', 'Quantity updated.');
     }
@@ -176,6 +224,7 @@ class OrderingController extends Controller
 
     public function placeOrder(Request $request)
     {
+        $userId = Auth::id();
         $request->validate([
             'payment_method' => 'required|string',
             'agreement' => 'accepted',
@@ -184,55 +233,55 @@ class OrderingController extends Controller
 
         $paymentMethod = $request->input('payment_method');
         $mode = $request->input('mode', 'dine-in');
-        $cart = $this->getCartItemsFromFile();
-
-        $seatingOption = $request->input('seating_option', 'available');
-        $address = $request->input('address');
-
-        if ($mode === 'dine-in') {
-            if ($seatingOption === 'unavailable') {
-                $address = 'unavailable';
-            } else {
-                $request->validate([
-                    'address' => 'required|string|max:255',
-                ]);
-            }
-        } else {
-            $address = $address ?: 'Take-Out at KFC Main Branch';
-        }
+        $cart = $this->readJsonFile($userId, 'cart.json', []);
 
         if (empty($cart)) {
             return redirect()->route('order.failure', ['mode' => $mode, 'error' => 'Your cart is empty. Please add items before checkout.']);
         }
 
-        // Randomly decide success or failure for demo
-        $success = rand(1, 2) === 1;
+        // Calculate total
+        $total = 0;
+        foreach ($cart as $cartItem) {
+            $total += $cartItem['price'] * $cartItem['quantity'];
+        }
+        $tax = floor($total * 0.1);
+        $finalTotal = $total + $tax;
 
-        if (!$success) {
-            return redirect()->route('order.failure', ['mode' => $mode, 'error' => 'Payment processing failed. Please try again.']);
+        // Create order in database
+        $order = Order::create([
+            'user_id' => $userId,
+            'status' => 'placed',
+            'total_price' => $finalTotal,
+            'order_mode' => $mode,
+            'notes' => 'Payment: ' . $paymentMethod,
+        ]);
+
+        // Create order items
+        $items = $this->readJsonFile($userId, 'menu.json', []);
+        foreach ($cart as $cartItem) {
+            $item = array_values(array_filter($items, fn($i) => (int)$i['id'] === (int)$cartItem['itemId']))[0] ?? null;
+            if ($item) {
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'menu_item_id' => $cartItem['itemId'],
+                    'quantity' => $cartItem['quantity'],
+                    'price_at_purchase' => $cartItem['price'],
+                ]);
+            }
         }
 
-        $orderId = 'ORD' . rand(100000, 999999);
-        $orders = $this->readJsonFile('orders.json', []);
-        $orders[] = [
-            'order_id' => $orderId,
-            'mode' => $mode,
-            'payment_method' => $paymentMethod,
-            'address' => $address,
-            'items' => $cart,
-            'created_at' => now()->toDateTimeString(),
-            'status' => 'placed'
-        ];
-        $this->writeJsonFile('orders.json', $orders);
+        // Clear cart
+        $this->writeJsonFile($userId, 'cart.json', []);
 
-        $this->saveCartItemsToFile([]);
-        return redirect()->route('order.success', ['order_id' => $orderId]);
+        return redirect()->route('order.success', ['order_id' => $order->id]);
     }
 
     public function success(Request $request)
     {
         $orderId = $request->query('order_id', 'N/A');
-        return view('ordering.success', ['orderId' => $orderId]);
+        $order = Order::find($orderId);
+
+        return view('ordering.success', ['orderId' => $orderId, 'order' => $order]);
     }
 
     public function failure(Request $request)
@@ -241,58 +290,42 @@ class OrderingController extends Controller
         $mode = $request->query('mode', 'dine-in');
         return view('ordering.failure', [
             'errorMessage' => $errorMessage,
-            'mode' => $mode
+            'mode' => $mode,
         ]);
     }
 
     public function addToCart(Request $request)
     {
+        $userId = Auth::id();
         $itemId = $request->input('item_id');
-        $variation = $request->input('variation');
         $quantity = $request->input('quantity', 1);
-        $addons = $request->input('addons', []);
+        $mode = $request->input('mode', 'dine-in');
 
-        $items = $this->getMenuItems();
-        $item = array_values(array_filter($items, fn($i) => $i['id'] == $itemId))[0] ?? null;
+        $items = $this->readJsonFile($userId, 'menu.json', []);
+        $item = array_values(array_filter($items, fn($i) => (int)$i['id'] === (int)$itemId))[0] ?? null;
 
         if (!$item) {
             return redirect()->back()->with('error', 'Item not found');
         }
 
-        // Calculate price
-        $price = $item['price'];
-        
-        // Add variation price
-        if ($variation) {
-            $variationData = array_values(array_filter($item['variations'], fn($v) => $v['name'] === $variation))[0] ?? null;
-            if ($variationData) {
-                $price += $variationData['price'];
-            }
-        }
-
-        // Add addons price
-        $addonNames = [];
-        if (is_array($addons)) {
-            foreach ($addons as $addon) {
-                $addonData = array_values(array_filter($item['addons'], fn($a) => $a['name'] === $addon))[0] ?? null;
-                if ($addonData) {
-                    $price += $addonData['price'];
-                    $addonNames[] = $addon;
-                }
-            }
-        }
-
-        $cart = $this->getCartItemsFromFile();
+        $cart = $this->readJsonFile($userId, 'cart.json', []);
         $cart[] = [
             'itemId' => $itemId,
-            'variation' => $variation,
-            'addons' => $addonNames,
             'quantity' => (int)$quantity,
-            'price' => $price
+            'price' => (float)$item['price'],
         ];
-        $this->saveCartItemsToFile($cart);
+        $this->writeJsonFile($userId, 'cart.json', $cart);
 
-        $mode = $request->input('mode', 'dine-in');
         return redirect()->route('ordering.menu', ['mode' => $mode])->with('success', 'Item added to cart!');
+    }
+
+    public function orderHistory()
+    {
+        $userId = Auth::id();
+        $orders = Order::where('user_id', $userId)->with('items.menuItem')->orderBy('created_at', 'desc')->get();
+
+        return view('ordering.order-history', [
+            'orders' => $orders,
+        ]);
     }
 }

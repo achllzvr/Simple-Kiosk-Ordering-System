@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -10,32 +11,6 @@ use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
-	private function getDummyDataPath(string $fileName): string
-	{
-		return base_path('dummy data/' . $fileName);
-	}
-
-	private function readJsonFile(string $fileName, array $fallback = []): array
-	{
-		$path = $this->getDummyDataPath($fileName);
-
-		if (!file_exists($path)) {
-			file_put_contents($path, json_encode($fallback, JSON_PRETTY_PRINT));
-			return $fallback;
-		}
-
-		$content = file_get_contents($path);
-		$decoded = json_decode($content, true);
-
-		return is_array($decoded) ? $decoded : $fallback;
-	}
-
-	private function writeJsonFile(string $fileName, array $data): void
-	{
-		$path = $this->getDummyDataPath($fileName);
-		file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT));
-	}
-
 	public function showLoginForm()
 	{
 		return view('users.login');
@@ -56,7 +31,12 @@ class UserController extends Controller
 
 		$request->session()->regenerate();
 
-		return redirect()->intended(route('ordering.selection'));
+		$user = Auth::user();
+		if ($user->isAdmin()) {
+			return redirect()->route('admin.dashboard');
+		} else {
+			return redirect()->route('ordering.selection');
+		}
 	}
 
 	public function logout(Request $request)
@@ -179,22 +159,13 @@ class UserController extends Controller
 
 	public function ordersKanban()
 	{
-		$orders = $this->readJsonFile('orders.json', []);
 		$columns = [
-			'placed' => [],
-			'preparing' => [],
-			'ready' => [],
-			'completed' => [],
-			'cancelled' => [],
+			'placed' => Order::where('status', 'placed')->with('user')->get(),
+			'preparing' => Order::where('status', 'preparing')->with('user')->get(),
+			'ready' => Order::where('status', 'ready')->with('user')->get(),
+			'completed' => Order::where('status', 'completed')->with('user')->get(),
+			'cancelled' => Order::where('status', 'cancelled')->with('user')->get(),
 		];
-
-		foreach ($orders as $order) {
-			$status = $order['status'] ?? 'placed';
-			if (!array_key_exists($status, $columns)) {
-				$status = 'placed';
-			}
-			$columns[$status][] = $order;
-		}
 
 		return view('users.orders-kanban', [
 			'columns' => $columns,
@@ -204,27 +175,12 @@ class UserController extends Controller
 	public function updateOrderStatus(Request $request)
 	{
 		$data = $request->validate([
-			'order_id' => ['required', 'string'],
+			'order_id' => ['required', 'exists:orders,id'],
 			'status' => ['required', Rule::in(['placed', 'preparing', 'ready', 'completed', 'cancelled'])],
 		]);
 
-		$orders = $this->readJsonFile('orders.json', []);
-		$updated = false;
-
-		foreach ($orders as &$order) {
-			if (($order['order_id'] ?? '') === $data['order_id']) {
-				$order['status'] = $data['status'];
-				$updated = true;
-				break;
-			}
-		}
-		unset($order);
-
-		if (!$updated) {
-			return redirect()->route('admin.orders')->with('error', 'Order not found.');
-		}
-
-		$this->writeJsonFile('orders.json', $orders);
+		$order = Order::findOrFail($data['order_id']);
+		$order->update(['status' => $data['status']]);
 
 		return redirect()->route('admin.orders')->with('success', 'Order status updated.');
 	}

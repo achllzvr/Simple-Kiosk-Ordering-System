@@ -26,21 +26,22 @@
                 <div class="card-body p-3">
                     @forelse($orders as $order)
                         <div class="border rounded p-3 mb-3 bg-light">
-                            <h6 class="mb-2 fw-bold">{{ $order['order_id'] ?? 'Unknown' }}</h6>
-                            <p class="small mb-1"><strong>Mode:</strong> {{ $order['mode'] ?? 'n/a' }}</p>
-                            <p class="small mb-1"><strong>Payment:</strong> {{ str_replace('_', ' ', $order['payment_method'] ?? 'n/a') }}</p>
-                            <p class="small mb-1"><strong>Items:</strong> {{ count($order['items'] ?? []) }}</p>
-                            <p class="small mb-2"><strong>Placed:</strong> {{ $order['created_at'] ?? 'n/a' }}</p>
+                            <h6 class="mb-2 fw-bold">#{{ $order->id }}</h6>
+                            <p class="small mb-1"><strong>Customer:</strong> {{ $order->user->name }}</p>
+                            <p class="small mb-1"><strong>Mode:</strong> {{ ucfirst(str_replace('-', ' ', $order->order_mode)) }}</p>
+                            <p class="small mb-1"><strong>Total:</strong> ${{ number_format($order->total_price, 2) }}</p>
+                            <p class="small mb-1"><strong>Items:</strong> {{ $order->items->count() }}</p>
+                            <p class="small mb-2"><strong>Ordered:</strong> {{ $order->created_at->format('M d H:i') }}</p>
 
                             <form method="POST" action="{{ route('admin.orders.status') }}">
                                 @csrf
-                                <input type="hidden" name="order_id" value="{{ $order['order_id'] ?? '' }}">
+                                <input type="hidden" name="order_id" value="{{ $order->id }}">
                                 <select name="status" class="form-select form-select-sm mb-2" required>
-                                    <option value="placed" @selected(($order['status'] ?? 'placed') === 'placed')>Placed</option>
-                                    <option value="preparing" @selected(($order['status'] ?? '') === 'preparing')>Preparing</option>
-                                    <option value="ready" @selected(($order['status'] ?? '') === 'ready')>Ready</option>
-                                    <option value="completed" @selected(($order['status'] ?? '') === 'completed')>Completed</option>
-                                    <option value="cancelled" @selected(($order['status'] ?? '') === 'cancelled')>Cancelled</option>
+                                    <option value="placed" @selected($order->status === 'placed')>Placed</option>
+                                    <option value="preparing" @selected($order->status === 'preparing')>Preparing</option>
+                                    <option value="ready" @selected($order->status === 'ready')>Ready</option>
+                                    <option value="completed" @selected($order->status === 'completed')>Completed</option>
+                                    <option value="cancelled" @selected($order->status === 'cancelled')>Cancelled</option>
                                 </select>
                                 <button type="submit" class="btn btn-sm btn-kfc w-100">Update</button>
                             </form>
