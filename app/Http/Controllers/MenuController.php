@@ -3,52 +3,43 @@
 namespace App\Http\Controllers;
 
 use App\Models\MenuItem;
+use App\Services\MenuService;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class MenuController extends Controller
 {
+    public function __construct(private MenuService $menuService) {}
+
     public function index()
     {
-        $items = MenuItem::orderBy('category')->orderBy('name')->get();
-        
         return view('admin.menu.index', [
-            'items' => $items,
+            'items' => $this->menuService->listAll(),
         ]);
     }
 
     public function create()
     {
-        $categories = MenuItem::distinct()->pluck('category')->filter(fn($cat) => !empty($cat))->toArray();
-        
         return view('admin.menu.create', [
-            'categories' => $categories,
+            'categories' => $this->menuService->categories(),
         ]);
     }
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:menu_items,name'],
-            'description' => ['nullable', 'string'],
-            'category' => ['required', 'string', 'max:100'],
-            'price' => ['required', 'numeric', 'min:0.01', 'max:999.99'],
-            'image' => ['nullable', 'string'],
-            'is_active' => ['boolean'],
-        ]);
-
-        MenuItem::create($data);
+        $data = $request->validate($this->menuService->validationRules());
+        $data['is_active'] = $request->boolean('is_active', true);
+        $this->menuService->create($data);
 
         return redirect()->route('admin.menu.index')->with('success', 'Menu item created successfully.');
     }
 
     public function edit(MenuItem $item)
     {
-        $categories = MenuItem::distinct()->pluck('category')->filter(fn($cat) => !empty($cat))->toArray();
-        if (!in_array($item->category, $categories)) {
+        $categories = $this->menuService->categories();
+        if (! in_array($item->category, $categories, true)) {
             $categories[] = $item->category;
         }
-        
+
         return view('admin.menu.edit', [
             'item' => $item,
             'categories' => $categories,
@@ -57,23 +48,16 @@ class MenuController extends Controller
 
     public function update(Request $request, MenuItem $item)
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255', Rule::unique('menu_items', 'name')->ignore($item->id)],
-            'description' => ['nullable', 'string'],
-            'category' => ['required', 'string', 'max:100'],
-            'price' => ['required', 'numeric', 'min:0.01', 'max:999.99'],
-            'image' => ['nullable', 'string'],
-            'is_active' => ['boolean'],
-        ]);
-
-        $item->update($data);
+        $data = $request->validate($this->menuService->validationRules($item->id));
+        $data['is_active'] = $request->boolean('is_active');
+        $this->menuService->update($item, $data);
 
         return redirect()->route('admin.menu.index')->with('success', 'Menu item updated successfully.');
     }
 
     public function destroy(MenuItem $item)
     {
-        $item->delete();
+        $this->menuService->delete($item);
 
         return redirect()->route('admin.menu.index')->with('success', 'Menu item deleted successfully.');
     }

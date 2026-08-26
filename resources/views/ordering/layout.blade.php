@@ -551,29 +551,23 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <div class="ms-auto">
                     @auth
-                        <a class="nav-link d-inline-block" href="{{ route('ordering.selection') }}">Ordering</a>
                         @if(auth()->user()->isAdmin())
                             <a class="nav-link d-inline-block" href="{{ route('admin.dashboard') }}">Dashboard</a>
-                            <a class="nav-link d-inline-block" href="{{ route('users.index') }}">Users</a>
                             <a class="nav-link d-inline-block" href="{{ route('admin.menu.index') }}">Menu</a>
+                            <a class="nav-link d-inline-block" href="{{ route('admin.restaurants.index') }}">Stores</a>
                             <a class="nav-link d-inline-block" href="{{ route('admin.orders') }}">Orders</a>
-                        @else
-                            <a class="nav-link d-inline-block" href="{{ route('customer.orders') }}">My Orders</a>
+                            <a class="nav-link d-inline-block" href="{{ route('users.index') }}">Users</a>
                         @endif
-
-                        @if(Request::routeIs('ordering.menu', 'ordering.cart', 'ordering.checkout'))
-                            <a class="nav-link d-inline-block" href="{{ route('ordering.cart', ['mode' => request()->query('mode', 'dine-in')]) }}">
-                                🛒 Cart
-                            </a>
-                        @endif
-
+                        <a class="nav-link d-inline-block" href="{{ route('ordering.selection') }}">Ordering</a>
                         <form method="POST" action="{{ route('logout') }}" class="d-inline-block ms-2">
                             @csrf
                             <button type="submit" class="btn btn-sm btn-light">Logout</button>
                         </form>
                     @else
-                        <a class="nav-link d-inline-block" href="{{ route('login') }}">Login</a>
-                        <a class="nav-link d-inline-block" href="{{ route('register') }}">Register</a>
+                        <a class="nav-link d-inline-block" href="{{ route('ordering.selection') }}">Order Now</a>
+                        <a class="nav-link d-inline-block" href="{{ route('order.track') }}">Track Order</a>
+                        <a class="nav-link d-inline-block" href="{{ route('ordering.cart', ['mode' => request()->query('mode', 'dine-in')]) }}">Cart</a>
+                        <a class="nav-link d-inline-block" href="{{ route('login') }}">Admin Login</a>
                     @endauth
                 </div>
             </div>

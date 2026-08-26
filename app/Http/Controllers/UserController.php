@@ -29,14 +29,17 @@ class UserController extends Controller
 			])->onlyInput('email');
 		}
 
+		$user = Auth::user();
+		if (!$user->isAdmin()) {
+			Auth::logout();
+			return back()->withErrors([
+				'email' => 'Admin access only. Guests can order without an account.',
+			])->onlyInput('email');
+		}
+
 		$request->session()->regenerate();
 
-		$user = Auth::user();
-		if ($user->isAdmin()) {
-			return redirect()->route('admin.dashboard');
-		} else {
-			return redirect()->route('ordering.selection');
-		}
+		return redirect()->route('admin.dashboard');
 	}
 
 	public function logout(Request $request)
@@ -160,11 +163,11 @@ class UserController extends Controller
 	public function ordersKanban()
 	{
 		$columns = [
-			'placed' => Order::where('status', 'placed')->with('user')->get(),
-			'preparing' => Order::where('status', 'preparing')->with('user')->get(),
-			'ready' => Order::where('status', 'ready')->with('user')->get(),
-			'completed' => Order::where('status', 'completed')->with('user')->get(),
-			'cancelled' => Order::where('status', 'cancelled')->with('user')->get(),
+			'placed' => Order::where('status', 'placed')->with(['user', 'restaurant', 'items'])->latest()->get(),
+			'preparing' => Order::where('status', 'preparing')->with(['user', 'restaurant', 'items'])->latest()->get(),
+			'ready' => Order::where('status', 'ready')->with(['user', 'restaurant', 'items'])->latest()->get(),
+			'completed' => Order::where('status', 'completed')->with(['user', 'restaurant', 'items'])->latest()->get(),
+			'cancelled' => Order::where('status', 'cancelled')->with(['user', 'restaurant', 'items'])->latest()->get(),
 		];
 
 		return view('users.orders-kanban', [
@@ -183,5 +186,21 @@ class UserController extends Controller
 		$order->update(['status' => $data['status']]);
 
 		return redirect()->route('admin.orders')->with('success', 'Order status updated.');
+	}
+
+	public function reconcilePaymongo(Request $request, \App\Services\OrderService $orderService)
+	{
+		$data = $request->validate([
+			'order_id' => ['required', 'exists:orders,id'],
+		]);
+
+		$order = Order::findOrFail($data['order_id']);
+		$result = $orderService->reconcilePaymongoOrder($order);
+
+		if (!($result['success'] ?? false)) {
+			return redirect()->route('admin.orders')->with('error', $result['error'] ?? 'Reconcile failed.');
+		}
+
+		return redirect()->route('admin.orders')->with('success', $result['message'] ?? 'Payment refreshed from PayMongo.');
 	}
 }

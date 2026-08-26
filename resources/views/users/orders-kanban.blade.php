@@ -27,9 +27,14 @@
                     @forelse($orders as $order)
                         <div class="border rounded p-3 mb-3 bg-light">
                             <h6 class="mb-2 fw-bold">#{{ $order->id }}</h6>
-                            <p class="small mb-1"><strong>Customer:</strong> {{ $order->user->name }}</p>
+                            <p class="small mb-1"><strong>Customer:</strong> {{ $order->guest_name ?: ($order->user->name ?? 'Guest') }}</p>
+                            <p class="small mb-1"><strong>Phone:</strong> {{ $order->guest_phone ?: '—' }}</p>
                             <p class="small mb-1"><strong>Mode:</strong> {{ ucfirst(str_replace('-', ' ', $order->order_mode)) }}</p>
-                            <p class="small mb-1"><strong>Total:</strong> ${{ number_format($order->total_price, 2) }}</p>
+                            @if($order->restaurant)
+                                <p class="small mb-1"><strong>Store:</strong> {{ $order->restaurant->name }}</p>
+                            @endif
+                            <p class="small mb-1"><strong>Payment:</strong> {{ $order->payment_status }}</p>
+                            <p class="small mb-1"><strong>Total:</strong> ₱{{ number_format($order->total_price, 2) }}</p>
                             <p class="small mb-1"><strong>Items:</strong> {{ $order->items->count() }}</p>
                             <p class="small mb-2"><strong>Ordered:</strong> {{ $order->created_at->format('M d H:i') }}</p>
 
@@ -43,8 +48,15 @@
                                     <option value="completed" @selected($order->status === 'completed')>Completed</option>
                                     <option value="cancelled" @selected($order->status === 'cancelled')>Cancelled</option>
                                 </select>
-                                <button type="submit" class="btn btn-sm btn-kfc w-100">Update</button>
+                                <button type="submit" class="btn btn-sm btn-kfc w-100 mb-2">Update</button>
                             </form>
+                            @if($order->paymongo_checkout_session_id && $order->payment_status !== 'paid')
+                                <form method="POST" action="{{ route('admin.orders.reconcile') }}">
+                                    @csrf
+                                    <input type="hidden" name="order_id" value="{{ $order->id }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary w-100">Refresh PayMongo</button>
+                                </form>
+                            @endif
                         </div>
                     @empty
                         <p class="text-muted small mb-0">No orders in this column.</p>

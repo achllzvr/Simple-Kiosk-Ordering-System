@@ -15,10 +15,9 @@
         </div>
 
         <div class="row justify-content-center">
-            <!-- Dine-in Option -->
-            <div class="col-md-5 mb-4">
+            <div class="col-md-4 mb-4">
                 <div class="card h-100 selection-card">
-                    <div class="card-body text-center p-5">
+                    <div class="card-body text-center p-4">
                         <div class="selection-emoji">🍽️</div>
                         <h2 class="card-title kfc-text-red fw-bold mb-2">Dine-In</h2>
                         <p class="card-text text-muted mb-4">Enjoy your order fresh inside the restaurant</p>
@@ -29,15 +28,27 @@
                 </div>
             </div>
 
-            <!-- Take-out Option -->
-            <div class="col-md-5 mb-4">
+            <div class="col-md-4 mb-4">
                 <div class="card h-100 selection-card">
-                    <div class="card-body text-center p-5">
+                    <div class="card-body text-center p-4">
                         <div class="selection-emoji">🏪</div>
                         <h2 class="card-title kfc-text-red fw-bold mb-2">Take-Out</h2>
                         <p class="card-text text-muted mb-4">Pick up your order at our restaurant counter</p>
                         <a href="{{ route('ordering.menu', ['mode' => 'take-out']) }}" class="btn btn-kfc btn-lg w-100">
                             Order for Take-Out
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 selection-card">
+                    <div class="card-body text-center p-4">
+                        <div class="selection-emoji">🛵</div>
+                        <h2 class="card-title kfc-text-red fw-bold mb-2">Delivery</h2>
+                        <p class="card-text text-muted mb-4">Pin your location and choose a nearby store</p>
+                        <a href="{{ route('ordering.location', ['mode' => 'delivery']) }}" class="btn btn-kfc btn-lg w-100">
+                            Order for Delivery
                         </a>
                     </div>
                 </div>
@@ -60,8 +71,8 @@
     }
 
     .selection-emoji {
-        font-size: 5rem;
-        margin-bottom: 20px;
+        font-size: 4rem;
+        margin-bottom: 16px;
     }
 
     .selection-card {

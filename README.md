@@ -1,80 +1,59 @@
 # KFC Fast Food Ordering Kiosk (Laravel)
 
-A simple kiosk-style ordering web app built with Laravel and Blade.
-
-Users can:
-- Choose ordering mode (`dine-in` or `take-out`)
-- Browse menu items
-- Add items with variation/add-ons
-- Manage cart quantities directly in cart
-- Remove items from cart
-- Checkout and place orders
-
-This project currently uses JSON files as dummy storage (no database required for ordering data).
+Guest kiosk ordering on **MySQL**, with admin store management, Leaflet delivery map, and TapUS-style **PayMongo** Hosted Checkout.
 
 ## Features
 
-- Kiosk-inspired UI with fixed bottom navigation (menu/cart flow)
-- Mode-aware flow (`dine-in` and `take-out`) preserved across retries
-- Cart quantity controls (`+`, `-`, direct input auto-update)
-- Remove-from-cart action
-- Order success/failure simulation
-- Local JSON persistence for:
-	- menu items
-	- cart
-	- order history
+- Guest ordering (no customer account required)
+- Modes: dine-in, take-out, delivery
+- Delivery: pin location + choose admin-configured store (Leaflet + OSM)
+- Session cart stored in MySQL
+- Admin CRUD: menu, stores (name + map pin), users, order kanban
+- PayMongo Hosted Checkout + webhook + admin reconcile
+- Order tracking via token
 
 ## Tech Stack
 
-- Laravel (PHP)
-- Blade templates
-- Bootstrap 5
-- Local JSON files for app data
-
-## Project Structure (key parts)
-
-- `app/Http/Controllers/OrderingController.php` — core ordering logic
-- `routes/web.php` — ordering routes
-- `resources/views/ordering/` — all kiosk pages
-- `dummy data/menu.json` — menu source
-- `dummy data/cart.json` — active cart storage
-- `dummy data/orders.json` — placed orders
-
-## Ordering Routes
-
-- `GET /ordering` — mode selection
-- `GET /menu?mode=dine-in|take-out` — menu page
-- `GET /cart?mode=dine-in|take-out` — cart page
-- `POST /cart/update-quantity` — update/remove cart item
-- `GET /checkout?mode=dine-in|take-out` — checkout page
-- `POST /add-to-cart` — add item to cart
-- `POST /place-order` — place order
-- `GET /success` — success page
-- `GET /failure` — failure page
+- Laravel 13 (PHP 8.3+)
+- MySQL
+- Blade + Bootstrap 5
+- Leaflet (maps)
+- PayMongo Checkout Sessions v2
 
 ## Setup
 
-1. Install dependencies:
+1. Create MySQL database `kiosk_ordering`.
+
+2. Install dependencies:
 
 ```bash
 composer install
 npm install
 ```
 
-2. Create environment file:
+3. Environment:
 
 ```bash
 cp .env.example .env
 php artisan key:generate
 ```
 
-3. Ensure these files/folders exist:
+Edit `.env` for MySQL (`DB_*`) and optional PayMongo keys.
 
-- `dummy data/menu.json`
-- `dummy data/cart.json`
-- `dummy data/orders.json`
+4. Migrate and seed:
 
-4. Run the app:
+```bash
+php artisan migrate --seed
+```
+
+Seeded admin:
+
+- Email: `admin@kiosk.test`
+- Password: `password`
+
+Seeded stores include map coordinates (Megamall, MOA, Trinoma) so delivery demos work immediately.
+
+5. Run:
 
 ```bash
 php artisan serve
@@ -82,19 +61,26 @@ php artisan serve
 
 Open: `http://127.0.0.1:8000/ordering`
 
-## Notes
+Optional Vite: `npm run dev` or full stack `composer run dev`.
 
-- Checkout currently simulates payment success/failure randomly for demo purposes.
-- Cart is only cleared on successful order placement.
-- If checkout fails, users can return to cart and retry with mode preserved.
+## PayMongo
 
-## Useful Commands
+Set in `.env`:
 
-```bash
-php artisan view:clear
-php artisan cache:clear
 ```
+PAYMONGO_ENABLED=true
+PAYMONGO_SECRET_KEY=sk_test_...
+PAYMONGO_WEBHOOK_SECRET=whsec_...
+```
+
+Webhook URL: `POST /webhooks/paymongo` (event `checkout_session.payment.paid`).
+
+Return URL is UX-only; payment is confirmed by webhook or **Admin → Orders → Refresh PayMongo**.
+
+## Class / teaching branch
+
+After the full app is on `main`, use branch `class/api-integration-starter` where Map + PayMongo integration is commented for live lessons.
 
 ## License
 
-This project is for educational/demo purposes.
+Educational / demo purposes.

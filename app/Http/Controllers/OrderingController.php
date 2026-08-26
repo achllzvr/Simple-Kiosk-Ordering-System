@@ -2,336 +2,350 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\MenuItem;
-use App\Models\Order;
-use App\Models\OrderItem;
+use App\Services\CartService;
+use App\Services\MenuService;
+use App\Services\OrderService;
+use App\Services\PayMongoService;
+use App\Services\RestaurantService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class OrderingController extends Controller
 {
-    private function getCustomerDataPath(int $userId, string $fileName): string
-    {
-        return base_path('customer_data/' . $userId . '/' . $fileName);
-    }
-
-    private function getCustomerDataDir(int $userId): string
-    {
-        return base_path('customer_data/' . $userId);
-    }
-
-    private function ensureCustomerDataDir(int $userId): void
-    {
-        $dir = $this->getCustomerDataDir($userId);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-    }
-
-    private function readJsonFile(int $userId, string $fileName, array $fallback = []): array
-    {
-        $this->ensureCustomerDataDir($userId);
-        $path = $this->getCustomerDataPath($userId, $fileName);
-
-        if (!file_exists($path)) {
-            file_put_contents($path, json_encode($fallback, JSON_PRETTY_PRINT));
-            return $fallback;
-        }
-
-        $content = file_get_contents($path);
-        $decoded = json_decode($content, true);
-
-        return is_array($decoded) ? $decoded : $fallback;
-    }
-
-    private function writeJsonFile(int $userId, string $fileName, array $data): void
-    {
-        $this->ensureCustomerDataDir($userId);
-        $path = $this->getCustomerDataPath($userId, $fileName);
-        file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT));
-    }
-
-    private function syncMenuFromDatabase(int $userId): void
-    {
-        $items = MenuItem::where('is_active', true)->get();
-        $menuData = $items->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'name' => $item->name,
-                'description' => $item->description,
-                'category' => $item->category,
-                'price' => (float)$item->price,
-                'image' => $item->image,
-                'variations' => [],
-                'addons' => [],
-            ];
-        })->toArray();
-
-        $this->writeJsonFile($userId, 'menu.json', $menuData);
-    }
-
-    private function getMenuItems()
-    {
-        return $this->readJsonFile('menu.json', []);
-    }
-
-    private function getCartItemsFromFile(): array
-    {
-        return $this->readJsonFile('cart.json', []);
-    }
-
-    private function saveCartItemsToFile(array $cartItems): void
-    {
-        $this->writeJsonFile('cart.json', array_values($cartItems));
-    }
-
-    private function calculateCartSubtotal(): int|float
-    {
-        $cart = $this->getCartItemsFromFile();
-        $items = $this->getMenuItems();
-        $subtotal = 0;
-
-        foreach ($cart as $cartItem) {
-            $subtotal += $cartItem['price'] * $cartItem['quantity'];
-        }
-
-        return $subtotal;
-    }
+    public function __construct(
+        private CartService $cartService,
+        private MenuService $menuService,
+        private OrderService $orderService,
+        private PayMongoService $payMongoService,
+        private RestaurantService $restaurantService,
+    ) {}
 
     public function selection()
     {
         return view('ordering.selection');
     }
 
+    public function location(Request $request)
+    {
+        $mode = $request->query('mode', 'delivery');
+        if ($mode !== 'delivery') {
+            return redirect()->route('ordering.menu', ['mode' => $mode]);
+        }
+
+        $stores = $this->restaurantService->listActive()->map(fn ($s) => [
+            'id' => $s->id,
+            'name' => $s->name,
+            'address' => $s->address,
+            'lat' => (float) $s->lat,
+            'lng' => (float) $s->lng,
+        ])->values();
+
+        return view('ordering.location', [
+            'mode' => 'delivery',
+            'stores' => $stores,
+        ]);
+    }
+
+    public function saveLocation(Request $request)
+    {
+        $data = $request->validate([
+            'mode' => 'required|in:delivery',
+            'restaurant_id' => 'required|exists:restaurants,id',
+            'customer_lat' => 'required|numeric|between:-90,90',
+            'customer_lng' => 'required|numeric|between:-180,180',
+        ]);
+
+        $restaurant = $this->restaurantService->listActive()->firstWhere('id', (int) $data['restaurant_id']);
+        if (! $restaurant || ! $restaurant->is_active) {
+            return back()->with('error', 'Please select an active store.');
+        }
+
+        session([
+            'order_mode' => 'delivery',
+            'restaurant_id' => (int) $data['restaurant_id'],
+            'customer_lat' => (float) $data['customer_lat'],
+            'customer_lng' => (float) $data['customer_lng'],
+        ]);
+
+        return redirect()->route('ordering.menu', ['mode' => 'delivery']);
+    }
+
+    public function nearbyStores(Request $request)
+    {
+        $data = $request->validate([
+            'lat' => 'required|numeric|between:-90,90',
+            'lng' => 'required|numeric|between:-180,180',
+        ]);
+
+        $stores = $this->restaurantService->activeNearby((float) $data['lat'], (float) $data['lng']);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $stores->map(fn ($s) => [
+                'id' => $s->id,
+                'name' => $s->name,
+                'address' => $s->address,
+                'lat' => (float) $s->lat,
+                'lng' => (float) $s->lng,
+                'distance_km' => $s->distance_km ?? null,
+            ])->values(),
+        ]);
+    }
+
     public function menu(Request $request)
     {
-        $userId = Auth::id();
         $mode = $request->query('mode', 'dine-in');
+        if ($mode === 'delivery' && ! session('restaurant_id')) {
+            return redirect()->route('ordering.location', ['mode' => 'delivery']);
+        }
+
         $search = $request->query('search', '');
-
-        // Sync menu from DB
-        $this->syncMenuFromDatabase($userId);
-
-        $items = $this->readJsonFile($userId, 'menu.json', []);
-        $cart = $this->readJsonFile($userId, 'cart.json', []);
-
-        // Filter by search
-        if ($search) {
-            $items = array_filter($items, function ($item) use ($search) {
-                return stripos($item['name'], $search) !== false || stripos($item['description'] ?? '', $search) !== false;
-            });
-        }
-
-        // Calculate cart totals
-        $subtotal = 0;
-        foreach ($cart as $cartItem) {
-            $subtotal += $cartItem['price'] * $cartItem['quantity'];
-        }
+        $cart = $this->cartService->getOrCreateCart();
+        $subtotal = $this->cartService->subtotal($cart);
 
         return view('ordering.menu', [
-            'items' => array_values($items),
+            'items' => $this->menuService->listActive($search ?: null)->map(fn ($item) => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'description' => $item->description,
+                'category' => $item->category,
+                'price' => (float) $item->price,
+                'image' => $item->image,
+                'variations' => [],
+                'addons' => [],
+            ])->values()->all(),
             'mode' => $mode,
             'search' => $search,
-            'hasCart' => count($cart) > 0,
+            'hasCart' => ! $this->cartService->isEmpty($cart),
             'cartSubtotal' => $subtotal,
         ]);
     }
 
     public function cart(Request $request)
     {
-        $userId = Auth::id();
-        $mode = $request->query('mode', 'dine-in');
-        $cart = $this->readJsonFile($userId, 'cart.json', []);
-        $items = $this->readJsonFile($userId, 'menu.json', []);
+        $mode = $request->query('mode', session('order_mode', 'dine-in'));
+        $cart = $this->cartService->getOrCreateCart();
+        $cartItems = $this->cartService->getItems($cart);
+        $subtotal = $this->cartService->subtotal($cart);
+        $tax = $this->cartService->tax($subtotal);
+        $total = $subtotal + $tax;
 
-        // Calculate totals
-        $subtotal = 0;
-        $cartItems = [];
-        foreach ($cart as $cartIndex => $cartItem) {
-            $item = array_values(array_filter($items, fn($i) => (int)$i['id'] === (int)$cartItem['itemId']))[0] ?? null;
-            if ($item) {
-                $itemTotal = $cartItem['price'] * $cartItem['quantity'];
-                $subtotal += $itemTotal;
-                $cartItems[] = array_merge($cartItem, [
-                    'total' => $itemTotal,
-                    'itemName' => $item['name'],
-                    'cartIndex' => $cartIndex,
-                ]);
-            }
+        $normalized = [];
+        foreach ($cartItems as $index => $item) {
+            $normalized[] = array_merge($item, [
+                'cartIndex' => $item['id'],
+                'itemId' => $item['menu_item_id'],
+            ]);
         }
 
-        $tax = floor($subtotal * 0.1); // 10% tax
-        $total = $subtotal + $tax;
-        $cartCount = count($cartItems);
-
         return view('ordering.cart', [
-            'cartItems' => $cartItems,
+            'cartItems' => $normalized,
             'subtotal' => $subtotal,
             'tax' => $tax,
             'serviceFee' => 0,
             'total' => $total,
             'mode' => $mode,
             'cartSubtotal' => $subtotal,
-            'cartCount' => $cartCount,
+            'cartCount' => count($normalized),
         ]);
     }
 
     public function updateCartQuantity(Request $request)
     {
-        $userId = Auth::id();
-        $request->validate([
-            'cart_index' => 'required|integer|min:0',
+        $data = $request->validate([
+            'cart_index' => 'required|integer|min:1',
             'action' => 'required|in:increase,decrease,set,remove',
             'quantity' => 'nullable|integer|min:1|max:99',
-            'mode' => 'nullable|in:dine-in,take-out',
+            'mode' => 'nullable|in:dine-in,take-out,delivery',
         ]);
 
-        $cartIndex = (int)$request->input('cart_index');
-        $action = $request->input('action');
-        $mode = $request->input('mode', 'dine-in');
-        $cart = $this->readJsonFile($userId, 'cart.json', []);
+        $mode = $data['mode'] ?? 'dine-in';
+        $cart = $this->cartService->getOrCreateCart();
 
-        if (!isset($cart[$cartIndex])) {
+        try {
+            $this->cartService->updateQuantity(
+                $cart,
+                (int) $data['cart_index'],
+                $data['action'],
+                isset($data['quantity']) ? (int) $data['quantity'] : null
+            );
+        } catch (\Throwable $e) {
             return redirect()->route('ordering.cart', ['mode' => $mode])->with('error', 'Cart item not found.');
         }
 
-        if ($action === 'remove') {
-            unset($cart[$cartIndex]);
-            $this->writeJsonFile($userId, 'cart.json', array_values($cart));
-            return redirect()->route('ordering.cart', ['mode' => $mode])->with('success', 'Item removed from cart.');
-        }
+        $message = $data['action'] === 'remove' ? 'Item removed from cart.' : 'Quantity updated.';
 
-        $currentQuantity = (int)($cart[$cartIndex]['quantity'] ?? 1);
-
-        if ($action === 'increase') {
-            $newQuantity = $currentQuantity + 1;
-        } elseif ($action === 'decrease') {
-            $newQuantity = max(1, $currentQuantity - 1);
-        } else {
-            $newQuantity = (int)$request->input('quantity', $currentQuantity);
-            $newQuantity = max(1, min(99, $newQuantity));
-        }
-
-        $cart[$cartIndex]['quantity'] = $newQuantity;
-        $this->writeJsonFile($userId, 'cart.json', $cart);
-
-        return redirect()->route('ordering.cart', ['mode' => $mode])->with('success', 'Quantity updated.');
+        return redirect()->route('ordering.cart', ['mode' => $mode])->with('success', $message);
     }
 
     public function checkout(Request $request)
     {
-        $mode = $request->query('mode', 'dine-in');
-        return view('ordering.checkout', ['mode' => $mode]);
+        $mode = $request->query('mode', session('order_mode', 'dine-in'));
+        if ($mode === 'delivery' && ! session('restaurant_id')) {
+            return redirect()->route('ordering.location', ['mode' => 'delivery']);
+        }
+
+        $cart = $this->cartService->getOrCreateCart();
+        if ($this->cartService->isEmpty($cart)) {
+            return redirect()->route('ordering.menu', ['mode' => $mode])->with('error', 'Your cart is empty.');
+        }
+
+        $restaurant = null;
+        if ($mode === 'delivery' && session('restaurant_id')) {
+            $restaurant = $this->restaurantService->listAll()->firstWhere('id', (int) session('restaurant_id'));
+        }
+
+        return view('ordering.checkout', [
+            'mode' => $mode,
+            'restaurant' => $restaurant,
+            'paymongoEnabled' => $this->payMongoService->isEnabled(),
+            'subtotal' => $this->cartService->subtotal($cart),
+            'tax' => $this->cartService->tax($this->cartService->subtotal($cart)),
+            'total' => $this->cartService->total($cart),
+        ]);
     }
 
     public function placeOrder(Request $request)
     {
-        $userId = Auth::id();
-        $request->validate([
+        $data = $request->validate([
             'payment_method' => 'required|string',
             'agreement' => 'accepted',
-            'mode' => 'required|in:dine-in,take-out',
+            'mode' => 'required|in:dine-in,take-out,delivery',
+            'guest_name' => 'required|string|max:255',
+            'guest_phone' => 'required|string|max:40',
+            'guest_email' => 'nullable|email|max:255',
+            'address' => 'nullable|string|max:255',
+            'seating_option' => 'nullable|string',
         ]);
 
-        $paymentMethod = $request->input('payment_method');
-        $mode = $request->input('mode', 'dine-in');
-        $cart = $this->readJsonFile($userId, 'cart.json', []);
-
-        if (empty($cart)) {
-            return redirect()->route('order.failure', ['mode' => $mode, 'error' => 'Your cart is empty. Please add items before checkout.']);
+        $mode = $data['mode'];
+        if ($mode === 'delivery' && ! session('restaurant_id')) {
+            return redirect()->route('ordering.location', ['mode' => 'delivery'])
+                ->with('error', 'Please select a store for delivery.');
         }
 
-        // Calculate total
-        $total = 0;
-        foreach ($cart as $cartItem) {
-            $total += $cartItem['price'] * $cartItem['quantity'];
+        $cart = $this->cartService->getOrCreateCart();
+
+        try {
+            $order = $this->orderService->placeUnpaidOrder($cart, [
+                'guest_name' => $data['guest_name'],
+                'guest_phone' => $data['guest_phone'],
+                'guest_email' => $data['guest_email'] ?? null,
+                'mode' => $mode,
+                'payment_method' => $data['payment_method'],
+                'restaurant_id' => $mode === 'delivery' ? (int) session('restaurant_id') : null,
+                'customer_lat' => $mode === 'delivery' ? session('customer_lat') : null,
+                'customer_lng' => $mode === 'delivery' ? session('customer_lng') : null,
+                'notes' => $this->buildNotes($data),
+            ]);
+        } catch (\RuntimeException $e) {
+            return redirect()->route('order.failure', ['mode' => $mode, 'error' => $e->getMessage()]);
         }
-        $tax = floor($total * 0.1);
-        $finalTotal = $total + $tax;
 
-        // Create order in database
-        $order = Order::create([
-            'user_id' => $userId,
-            'status' => 'placed',
-            'total_price' => $finalTotal,
-            'order_mode' => $mode,
-            'notes' => 'Payment: ' . $paymentMethod,
-        ]);
+        session()->forget(['restaurant_id', 'customer_lat', 'customer_lng', 'order_mode']);
 
-        // Create order items
-        $items = $this->readJsonFile($userId, 'menu.json', []);
-        foreach ($cart as $cartItem) {
-            $item = array_values(array_filter($items, fn($i) => (int)$i['id'] === (int)$cartItem['itemId']))[0] ?? null;
-            if ($item) {
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'menu_item_id' => $cartItem['itemId'],
-                    'quantity' => $cartItem['quantity'],
-                    'price_at_purchase' => $cartItem['price'],
+        if ($this->payMongoService->isPayMongoMethod($data['payment_method'])) {
+            $checkout = $this->payMongoService->createCheckoutForOrder(
+                $order,
+                route('paymongo.return', ['token' => $order->tracking_token, 'status' => 'success']),
+                route('paymongo.return', ['token' => $order->tracking_token, 'status' => 'cancel']),
+            );
+
+            if (! ($checkout['success'] ?? false)) {
+                return redirect()->route('order.failure', [
+                    'mode' => $mode,
+                    'error' => $checkout['error'] ?? 'PayMongo checkout failed.',
                 ]);
             }
+
+            $this->orderService->savePaymongoCheckoutSession($order, $checkout['session_id']);
+
+            return redirect()->away($checkout['checkout_url']);
         }
 
-        // Clear cart
-        $this->writeJsonFile($userId, 'cart.json', []);
+        $this->orderService->markCashAwaiting($order);
 
-        return redirect()->route('order.success', ['order_id' => $order->id]);
+        return redirect()->route('order.success', [
+            'order_id' => $order->id,
+            'token' => $order->tracking_token,
+        ]);
     }
 
     public function success(Request $request)
     {
-        $orderId = $request->query('order_id', 'N/A');
-        $order = Order::find($orderId);
+        $orderId = $request->query('order_id');
+        $token = $request->query('token');
+        $order = null;
 
-        return view('ordering.success', ['orderId' => $orderId, 'order' => $order]);
+        if ($token) {
+            $order = $this->orderService->findByTrackingToken($token);
+        } elseif ($orderId) {
+            $order = \App\Models\Order::with(['items.menuItem', 'restaurant'])->find($orderId);
+        }
+
+        return view('ordering.success', [
+            'orderId' => $order?->id ?? $orderId ?? 'N/A',
+            'order' => $order,
+            'token' => $order?->tracking_token ?? $token,
+        ]);
     }
 
     public function failure(Request $request)
     {
-        $errorMessage = $request->query('error', 'An error occurred while processing your order.');
-        $mode = $request->query('mode', 'dine-in');
         return view('ordering.failure', [
-            'errorMessage' => $errorMessage,
-            'mode' => $mode,
+            'errorMessage' => $request->query('error', 'An error occurred while processing your order.'),
+            'mode' => $request->query('mode', 'dine-in'),
         ]);
     }
 
     public function addToCart(Request $request)
     {
-        $userId = Auth::id();
-        $itemId = $request->input('item_id');
-        $quantity = $request->input('quantity', 1);
-        $mode = $request->input('mode', 'dine-in');
-        $variation = $request->input('variation', null);
-        $addons = $request->input('addons', []);
+        $data = $request->validate([
+            'item_id' => 'required|integer|exists:menu_items,id',
+            'quantity' => 'nullable|integer|min:1|max:99',
+            'mode' => 'nullable|in:dine-in,take-out,delivery',
+            'variation' => 'nullable|string',
+            'addons' => 'nullable|array',
+        ]);
 
-        $items = $this->readJsonFile($userId, 'menu.json', []);
-        $item = array_values(array_filter($items, fn($i) => (int)$i['id'] === (int)$itemId))[0] ?? null;
+        $mode = $data['mode'] ?? 'dine-in';
+        $cart = $this->cartService->getOrCreateCart();
 
-        if (!$item) {
+        try {
+            $this->cartService->addItem(
+                $cart,
+                (int) $data['item_id'],
+                (int) ($data['quantity'] ?? 1),
+                $data['variation'] ?? null,
+                is_array($data['addons'] ?? null) ? $data['addons'] : []
+            );
+        } catch (\Throwable $e) {
             return redirect()->back()->with('error', 'Item not found');
         }
-
-        $cart = $this->readJsonFile($userId, 'cart.json', []);
-        $cart[] = [
-            'itemId' => $itemId,
-            'quantity' => (int)$quantity,
-            'price' => (float)$item['price'],
-            'variation' => $variation,
-            'addons' => is_array($addons) ? $addons : [],
-        ];
-        $this->writeJsonFile($userId, 'cart.json', $cart);
 
         return redirect()->route('ordering.menu', ['mode' => $mode])->with('success', 'Item added to cart!');
     }
 
-    public function orderHistory()
+    public function track(Request $request)
     {
-        $userId = Auth::id();
-        $orders = Order::where('user_id', $userId)->with('items.menuItem')->orderBy('created_at', 'desc')->get();
+        $token = $request->query('token', '');
+        $order = $token !== '' ? $this->orderService->findByTrackingToken($token) : null;
 
-        return view('ordering.order-history', [
-            'orders' => $orders,
+        return view('ordering.track', [
+            'token' => $token,
+            'order' => $order,
         ]);
+    }
+
+    private function buildNotes(array $data): ?string
+    {
+        $parts = [];
+        if (! empty($data['address'])) {
+            $parts[] = 'Address/Seat: '.$data['address'];
+        }
+        if (! empty($data['seating_option'])) {
+            $parts[] = 'Seating: '.$data['seating_option'];
+        }
+
+        return $parts === [] ? null : implode(' | ', $parts);
     }
 }

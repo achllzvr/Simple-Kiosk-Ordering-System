@@ -55,9 +55,9 @@
 
                 <hr>
 
-                <p class="mb-0 text-center">
-                    No account yet?
-                    <a href="{{ route('register') }}" class="fw-bold text-danger">Create one</a>
+                <p class="mb-0 text-center text-muted small">
+                    Guests can order without an account.
+                    <a href="{{ route('ordering.selection') }}" class="fw-bold text-danger">Start ordering</a>
                 </p>
             </div>
         </div>

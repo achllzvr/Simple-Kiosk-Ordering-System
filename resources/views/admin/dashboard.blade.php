@@ -57,6 +57,7 @@
             <div class="btn-group w-100" role="group">
                 <a href="{{ route('users.index') }}" class="btn btn-kfc flex-fill">Manage Users</a>
                 <a href="{{ route('admin.menu.index') }}" class="btn btn-kfc flex-fill">Manage Menu</a>
+                <a href="{{ route('admin.restaurants.index') }}" class="btn btn-kfc flex-fill">Manage Stores</a>
                 <a href="{{ route('admin.orders') }}" class="btn btn-kfc flex-fill">View Orders</a>
             </div>
         </div>
@@ -81,7 +82,7 @@
                         @forelse($recentOrders as $order)
                         <tr>
                             <td><strong>#{{ $order->id }}</strong></td>
-                            <td>{{ $order->user->name }}</td>
+                            <td>{{ $order->guest_name ?: ($order->user->name ?? 'Guest') }}</td>
                             <td>{{ ucfirst(str_replace('-', ' ', $order->order_mode)) }}</td>
                             <td>${{ number_format($order->total_price, 2) }}</td>
                             <td>

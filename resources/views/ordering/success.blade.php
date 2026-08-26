@@ -25,7 +25,23 @@
                 <div class="alert alert-success mb-4 success-order-id">
                     <h5 class="success-text mb-3">Order ID</h5>
                     <h3 class="success-text fw-bold order-id-text">{{ $orderId }}</h3>
-                    <p class="small mb-0 success-text">Please save this ID for your records</p>
+                    @if(!empty($token))
+                        <p class="mb-1 success-text"><strong>Tracking token:</strong> <code>{{ $token }}</code></p>
+                        <p class="small mb-2">
+                            <a href="{{ route('order.track', ['token' => $token]) }}">Track this order</a>
+                        </p>
+                    @endif
+                    @if($order)
+                        <p class="small mb-0 success-text">
+                            Payment: {{ strtoupper($order->payment_status) }}
+                            · Mode: {{ $order->order_mode }}
+                            @if($order->restaurant)
+                                · Store: {{ $order->restaurant->name }}
+                            @endif
+                        </p>
+                    @else
+                        <p class="small mb-0 success-text">Please save this ID for your records</p>
+                    @endif
                 </div>
 
                 <!-- Order Status -->
