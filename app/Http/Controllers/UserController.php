@@ -51,32 +51,6 @@ class UserController extends Controller
 		return redirect()->route('login');
 	}
 
-	public function showRegisterForm()
-	{
-		return view('users.register');
-	}
-
-	public function register(Request $request)
-	{
-		$data = $request->validate([
-			'name' => ['required', 'string', 'max:255'],
-			'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-			'password' => ['required', 'string', 'min:8', 'confirmed'],
-		]);
-
-		$user = User::create([
-			'name' => $data['name'],
-			'email' => $data['email'],
-			'password' => Hash::make($data['password']),
-			'role' => 'customer',
-		]);
-
-		Auth::login($user);
-		$request->session()->regenerate();
-
-		return redirect()->route('ordering.selection')->with('success', 'Account created successfully.');
-	}
-
 	public function index()
 	{
 		$users = User::orderBy('id')->get();

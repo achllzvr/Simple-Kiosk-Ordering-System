@@ -20,7 +20,7 @@
 
     <div class="row">
         <div class="col-md-6">
-            <form action="{{ route('admin.menu.update', $item) }}" method="POST">
+            <form action="{{ route('admin.menu.update', $item) }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
 
@@ -48,7 +48,7 @@
                 <div class="mb-3">
                     <label for="price" class="form-label">Price *</label>
                     <div class="input-group">
-                        <span class="input-group-text">$</span>
+                        <span class="input-group-text">₱</span>
                         <input type="number" class="form-control @error('price') is-invalid @enderror" id="price" name="price" value="{{ old('price', $item->price) }}" step="0.01" min="0" required>
                     </div>
                     @error('price')
@@ -65,10 +65,18 @@
                 </div>
 
                 <div class="mb-3">
-                    <label for="image" class="form-label">Image URL</label>
-                    <input type="text" class="form-control @error('image') is-invalid @enderror" id="image" name="image" value="{{ old('image', $item->image) }}">
-                    @error('image')
-                    <span class="text-danger small">{{ $message }}</span>
+                    <label class="form-label">Current image</label>
+                    <div>
+                        <img src="{{ $item->image_url }}" alt="{{ $item->name }}" style="max-width: 180px; max-height: 140px; object-fit: cover; border-radius: 12px; border: 2px solid var(--kfc-black);">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="image_file" class="form-label">Replace image</label>
+                    <input type="file" class="form-control @error('image_file') is-invalid @enderror" id="image_file" name="image_file" accept="image/jpeg,image/png,image/webp,image/gif">
+                    <small class="text-muted">Leave empty to keep the current image. JPEG, PNG, WebP, or GIF — max 4MB</small>
+                    @error('image_file')
+                    <span class="text-danger small d-block">{{ $message }}</span>
                     @enderror
                 </div>
 

@@ -140,6 +140,21 @@
                         <strong class="d-block mb-2">Order Mode:</strong>
                         @if($mode === 'dine-in')
                             <span>🍽️ Dine-In</span>
+                        @elseif($mode === 'delivery')
+                            <span>🛵 Delivery</span>
+                            @if(!empty($restaurant))
+                                <div class="mt-2 small">
+                                    <strong>Store:</strong> {{ $restaurant->name }}
+                                    @if($restaurant->address)
+                                        <br>{{ $restaurant->address }}
+                                    @endif
+                                </div>
+                            @else
+                                <div class="mt-2 small text-danger">
+                                    No store selected.
+                                    <a href="{{ route('ordering.location', ['mode' => 'delivery']) }}">Choose a store</a>
+                                </div>
+                            @endif
                         @else
                             <span>🏪 Take-Out</span>
                         @endif

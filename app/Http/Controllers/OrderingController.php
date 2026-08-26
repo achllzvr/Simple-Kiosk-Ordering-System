@@ -109,7 +109,7 @@ class OrderingController extends Controller
                 'description' => $item->description,
                 'category' => $item->category,
                 'price' => (float) $item->price,
-                'image' => $item->image,
+                'image' => $item->image_url,
                 'variations' => [],
                 'addons' => [],
             ])->values()->all(),
@@ -146,6 +146,9 @@ class OrderingController extends Controller
             'mode' => $mode,
             'cartSubtotal' => $subtotal,
             'cartCount' => count($normalized),
+            'restaurant' => $mode === 'delivery' && session('restaurant_id')
+                ? $this->restaurantService->listAll()->firstWhere('id', (int) session('restaurant_id'))
+                : null,
         ]);
     }
 

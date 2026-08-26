@@ -15,7 +15,7 @@ class MenuItemSeeder extends Seeder
                 'description' => 'Colonel’s secret blend of 11 herbs and spices.',
                 'category' => 'Chicken',
                 'price' => 129.00,
-                'image' => null,
+                'image' => 'assets/images/og_chick.jpg',
                 'is_active' => true,
             ],
             [
@@ -23,7 +23,7 @@ class MenuItemSeeder extends Seeder
                 'description' => 'Spicy chicken fillet burger with lettuce and mayo.',
                 'category' => 'Burgers',
                 'price' => 159.00,
-                'image' => null,
+                'image' => 'assets/images/zinger.jpg',
                 'is_active' => true,
             ],
             [
@@ -31,7 +31,7 @@ class MenuItemSeeder extends Seeder
                 'description' => 'Mashed potato, gravy, corn, and crispy chicken.',
                 'category' => 'Bowls',
                 'price' => 149.00,
-                'image' => null,
+                'image' => 'assets/images/fambowl.jpg',
                 'is_active' => true,
             ],
             [
@@ -39,7 +39,7 @@ class MenuItemSeeder extends Seeder
                 'description' => 'Tortilla wrap with crispy strips and fresh veggies.',
                 'category' => 'Wraps',
                 'price' => 119.00,
-                'image' => null,
+                'image' => 'assets/images/twister.jpg',
                 'is_active' => true,
             ],
             [
@@ -47,7 +47,7 @@ class MenuItemSeeder extends Seeder
                 'description' => 'Crispy golden fries.',
                 'category' => 'Sides',
                 'price' => 69.00,
-                'image' => null,
+                'image' => 'assets/images/fries.jpg',
                 'is_active' => true,
             ],
             [
@@ -55,7 +55,7 @@ class MenuItemSeeder extends Seeder
                 'description' => 'Chilled fountain drink.',
                 'category' => 'Drinks',
                 'price' => 49.00,
-                'image' => null,
+                'image' => 'assets/images/coke.jpg',
                 'is_active' => true,
             ],
         ];

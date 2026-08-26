@@ -26,9 +26,9 @@ class MenuController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate($this->menuService->validationRules());
+        $data = $request->validate($this->menuService->validationRules(null, true));
         $data['is_active'] = $request->boolean('is_active', true);
-        $this->menuService->create($data);
+        $this->menuService->create($data, $request->file('image_file'));
 
         return redirect()->route('admin.menu.index')->with('success', 'Menu item created successfully.');
     }
@@ -48,9 +48,9 @@ class MenuController extends Controller
 
     public function update(Request $request, MenuItem $item)
     {
-        $data = $request->validate($this->menuService->validationRules($item->id));
+        $data = $request->validate($this->menuService->validationRules($item->id, true));
         $data['is_active'] = $request->boolean('is_active');
-        $this->menuService->update($item, $data);
+        $this->menuService->update($item, $data, $request->file('image_file'));
 
         return redirect()->route('admin.menu.index')->with('success', 'Menu item updated successfully.');
     }

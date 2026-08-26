@@ -23,10 +23,10 @@
         <table class="table table-hover">
             <thead class="table-kfc text-white">
                 <tr>
+                    <th>Image</th>
                     <th>Name</th>
                     <th>Category</th>
                     <th>Price</th>
-                    <th>Description</th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
@@ -34,10 +34,12 @@
             <tbody>
                 @forelse($items as $item)
                 <tr>
+                    <td>
+                        <img src="{{ $item->image_url }}" alt="" style="width: 48px; height: 48px; object-fit: cover; border-radius: 8px;">
+                    </td>
                     <td><strong>{{ $item->name }}</strong></td>
                     <td>{{ $item->category }}</td>
-                    <td>${{ number_format($item->price, 2) }}</td>
-                    <td>{{ Str::limit($item->description, 50) }}</td>
+                    <td>₱{{ number_format($item->price, 2) }}</td>
                     <td>
                         @if($item->is_active)
                         <span class="badge bg-success">Active</span>

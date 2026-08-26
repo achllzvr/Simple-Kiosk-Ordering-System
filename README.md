@@ -8,7 +8,7 @@ Guest kiosk ordering on **MySQL**, with admin store management, Leaflet delivery
 - Modes: dine-in, take-out, delivery
 - Delivery: pin location + choose admin-configured store (Leaflet + OSM)
 - Session cart stored in MySQL
-- Admin CRUD: menu, stores (name + map pin), users, order kanban
+- Admin CRUD: menu (with image upload), stores (name + map pin), users, order kanban
 - PayMongo Hosted Checkout + webhook + admin reconcile
 - Order tracking via token
 
@@ -22,7 +22,12 @@ Guest kiosk ordering on **MySQL**, with admin store management, Leaflet delivery
 
 ## Setup
 
-1. Create MySQL database `kiosk_ordering`.
+1. Create **one** MySQL database named `kiosk_ordering` (phpMyAdmin or CLI).  
+   Do not create a second database such as `kiosk_ordering_system` — Laravel only uses `DB_DATABASE` from `.env`.
+
+```sql
+CREATE DATABASE kiosk_ordering CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
 
 2. Install dependencies:
 
@@ -40,10 +45,11 @@ php artisan key:generate
 
 Edit `.env` for MySQL (`DB_*`) and optional PayMongo keys.
 
-4. Migrate and seed:
+4. Migrate, seed, and link public storage (required for menu image uploads):
 
 ```bash
 php artisan migrate --seed
+php artisan storage:link
 ```
 
 Seeded admin:
@@ -79,7 +85,11 @@ Return URL is UX-only; payment is confirmed by webhook or **Admin → Orders →
 
 ## Class / teaching branch
 
-After the full app is on `main`, use branch `class/api-integration-starter` where Map + PayMongo integration is commented for live lessons.
+Branch `class/api-integration-starter` ships with **Maps fully enabled**. Only **PayMongo** routes/UI are commented with `TODO: API Integration lesson` markers so the classroom lab focuses on payment configuration.
+
+```bash
+git checkout class/api-integration-starter
+```
 
 ## License
 
