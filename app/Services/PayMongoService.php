@@ -101,7 +101,8 @@ class PayMongoService
             return ['success' => false, 'error' => 'Session ID is required.'];
         }
 
-        return $this->request('GET', '/v2/checkout_sessions/'.rawurlencode($sessionId));
+        // Create uses Checkout Sessions v2; retrieve is only available on v1.
+        return $this->request('GET', '/v1/checkout_sessions/'.rawurlencode($sessionId));
     }
 
     public function getPaymentStatusFromSession(array $sessionBody): string
