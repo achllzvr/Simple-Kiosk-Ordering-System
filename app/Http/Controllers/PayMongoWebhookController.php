@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Contracts\PaymentGateway;
 use App\Services\OrderService;
-use App\Services\PayMongoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class PayMongoWebhookController extends Controller
 {
     public function __construct(
-        private PayMongoService $payMongoService,
+        private PaymentGateway $payMongoService,
         private OrderService $orderService,
     ) {}
 

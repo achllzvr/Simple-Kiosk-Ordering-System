@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Contracts\PaymentGateway;
+use App\Http\Requests\PlaceOrderRequest;
 use App\Services\CartService;
 use App\Services\MenuService;
 use App\Services\OrderService;
-use App\Services\PayMongoService;
 use App\Services\RestaurantService;
 use Illuminate\Http\Request;
 
@@ -15,7 +16,7 @@ class OrderingController extends Controller
         private CartService $cartService,
         private MenuService $menuService,
         private OrderService $orderService,
-        private PayMongoService $payMongoService,
+        private PaymentGateway $payMongoService,
         private RestaurantService $restaurantService,
     ) {}
 
@@ -207,18 +208,9 @@ class OrderingController extends Controller
         ]);
     }
 
-    public function placeOrder(Request $request)
+    public function placeOrder(PlaceOrderRequest $request)
     {
-        $data = $request->validate([
-            'payment_method' => 'required|string',
-            'agreement' => 'accepted',
-            'mode' => 'required|in:dine-in,take-out,delivery',
-            'guest_name' => 'required|string|max:255',
-            'guest_phone' => 'required|string|max:40',
-            'guest_email' => 'nullable|email|max:255',
-            'address' => 'nullable|string|max:255',
-            'seating_option' => 'nullable|string',
-        ]);
+        $data = $request->validated();
 
         $mode = $data['mode'];
         if ($mode === 'delivery' && ! session('restaurant_id')) {
@@ -238,7 +230,7 @@ class OrderingController extends Controller
                 'restaurant_id' => $mode === 'delivery' ? (int) session('restaurant_id') : null,
                 'customer_lat' => $mode === 'delivery' ? session('customer_lat') : null,
                 'customer_lng' => $mode === 'delivery' ? session('customer_lng') : null,
-                'notes' => $this->buildNotes($data),
+                'notes' => $this->orderService->buildGuestNotes($data),
             ]);
         } catch (\RuntimeException $e) {
             return redirect()->route('order.failure', ['mode' => $mode, 'error' => $e->getMessage()]);
@@ -282,7 +274,7 @@ class OrderingController extends Controller
         if ($token) {
             $order = $this->orderService->findByTrackingToken($token);
         } elseif ($orderId) {
-            $order = \App\Models\Order::with(['items.menuItem', 'restaurant'])->find($orderId);
+            $order = $this->orderService->findWithDetails((int) $orderId);
         }
 
         return view('ordering.success', [
@@ -337,18 +329,5 @@ class OrderingController extends Controller
             'token' => $token,
             'order' => $order,
         ]);
-    }
-
-    private function buildNotes(array $data): ?string
-    {
-        $parts = [];
-        if (! empty($data['address'])) {
-            $parts[] = 'Address/Seat: '.$data['address'];
-        }
-        if (! empty($data['seating_option'])) {
-            $parts[] = 'Seating: '.$data['seating_option'];
-        }
-
-        return $parts === [] ? null : implode(' | ', $parts);
     }
 }

@@ -18,7 +18,7 @@ Route::get('/paymongo/return', PayMongoReturnController::class)->name('paymongo.
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [UserController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [UserController::class, 'login'])->name('login.submit');
+    Route::post('/login', [UserController::class, 'login'])->middleware('throttle:5,1')->name('login.submit');
 });
 
 Route::middleware('auth')->group(function () {

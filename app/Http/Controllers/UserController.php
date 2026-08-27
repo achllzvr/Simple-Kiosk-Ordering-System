@@ -2,179 +2,137 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\LoginRequest;
+use App\Http\Requests\ReconcilePaymongoRequest;
+use App\Http\Requests\StoreUserRequest;
+use App\Http\Requests\UpdateOrderStatusRequest;
+use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
-use App\Models\Order;
+use App\Services\OrderService;
+use App\Services\UserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
-	public function showLoginForm()
-	{
-		return view('users.login');
-	}
+    public function __construct(
+        private UserService $userService,
+        private OrderService $orderService,
+    ) {}
 
-	public function login(Request $request)
-	{
-		$credentials = $request->validate([
-			'email' => ['required', 'email'],
-			'password' => ['required', 'string'],
-		]);
+    public function showLoginForm()
+    {
+        return view('users.login');
+    }
 
-		if (!Auth::attempt($credentials)) {
-			return back()->withErrors([
-				'email' => 'The provided credentials do not match our records.',
-			])->onlyInput('email');
-		}
+    public function login(LoginRequest $request)
+    {
+        $credentials = $request->validated();
 
-		$user = Auth::user();
-		if (!$user->isAdmin()) {
-			Auth::logout();
-			return back()->withErrors([
-				'email' => 'Admin access only. Guests can order without an account.',
-			])->onlyInput('email');
-		}
+        if (! Auth::attempt($credentials)) {
+            return back()->withErrors([
+                'email' => 'The provided credentials do not match our records.',
+            ])->onlyInput('email');
+        }
 
-		$request->session()->regenerate();
+        $user = Auth::user();
+        if (! $user->isAdmin()) {
+            Auth::logout();
 
-		return redirect()->route('admin.dashboard');
-	}
+            return back()->withErrors([
+                'email' => 'Admin access only. Guests can order without an account.',
+            ])->onlyInput('email');
+        }
 
-	public function logout(Request $request)
-	{
-		Auth::logout();
-		$request->session()->invalidate();
-		$request->session()->regenerateToken();
+        $request->session()->regenerate();
 
-		return redirect()->route('login');
-	}
+        return redirect()->route('admin.dashboard');
+    }
 
-	public function index()
-	{
-		$users = User::orderBy('id')->get();
+    public function logout(Request $request)
+    {
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
-		return view('users.index', [
-			'users' => $users,
-		]);
-	}
+        return redirect()->route('login');
+    }
 
-	public function create()
-	{
-		return view('users.create');
-	}
+    public function index()
+    {
+        return view('users.index', [
+            'users' => $this->userService->listAll(),
+        ]);
+    }
 
-	public function store(Request $request)
-	{
-		$data = $request->validate([
-			'name' => ['required', 'string', 'max:255'],
-			'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-			'password' => ['required', 'string', 'min:8', 'confirmed'],
-			'role' => ['required', Rule::in(['customer', 'admin'])],
-		]);
+    public function create()
+    {
+        return view('users.create');
+    }
 
-		User::create([
-			'name' => $data['name'],
-			'email' => $data['email'],
-			'password' => Hash::make($data['password']),
-			'role' => $data['role'],
-		]);
+    public function store(StoreUserRequest $request)
+    {
+        $this->userService->create($request->validated());
 
-		return redirect()->route('users.index')->with('success', 'User created successfully.');
-	}
+        return redirect()->route('users.index')->with('success', 'User created successfully.');
+    }
 
-	public function edit(User $user)
-	{
-		return view('users.edit', [
-			'user' => $user,
-		]);
-	}
+    public function edit(User $user)
+    {
+        return view('users.edit', [
+            'user' => $user,
+        ]);
+    }
 
-	public function update(Request $request, User $user)
-	{
-		$data = $request->validate([
-			'name' => ['required', 'string', 'max:255'],
-			'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-			'password' => ['nullable', 'string', 'min:8', 'confirmed'],
-			'role' => ['required', Rule::in(['customer', 'admin'])],
-		]);
+    public function update(UpdateUserRequest $request, User $user)
+    {
+        try {
+            $this->userService->update($user, $request->validated());
+        } catch (ValidationException $e) {
+            return redirect()->route('users.index')->with('error', collect($e->errors())->flatten()->first());
+        }
 
-		$updatePayload = [
-			'name' => $data['name'],
-			'email' => $data['email'],
-			'role' => $data['role'],
-		];
+        return redirect()->route('users.index')->with('success', 'User updated successfully.');
+    }
 
-		if ($user->role === 'admin' && $data['role'] === 'customer' && User::where('role', 'admin')->count() <= 1) {
-			return redirect()->route('users.index')->with('error', 'At least one admin account must remain in the system.');
-		}
+    public function destroy(User $user)
+    {
+        try {
+            $this->userService->delete($user, Auth::id());
+        } catch (ValidationException $e) {
+            return redirect()->route('users.index')->with('error', collect($e->errors())->flatten()->first());
+        }
 
-		if (!empty($data['password'])) {
-			$updatePayload['password'] = Hash::make($data['password']);
-		}
+        return redirect()->route('users.index')->with('success', 'User deleted successfully.');
+    }
 
-		$user->update($updatePayload);
+    public function ordersKanban()
+    {
+        return view('users.orders-kanban', [
+            'columns' => $this->orderService->kanbanColumns(),
+        ]);
+    }
 
-		return redirect()->route('users.index')->with('success', 'User updated successfully.');
-	}
+    public function updateOrderStatus(UpdateOrderStatusRequest $request)
+    {
+        $data = $request->validated();
+        $order = $this->orderService->findOrFail((int) $data['order_id']);
+        $this->orderService->updateKitchenStatus($order, $data['status']);
 
-	public function destroy(User $user)
-	{
-		if (Auth::id() === $user->id) {
-			return redirect()->route('users.index')->with('error', 'You cannot delete your own account while logged in.');
-		}
+        return redirect()->route('admin.orders')->with('success', 'Order status updated.');
+    }
 
-		if ($user->role === 'admin' && User::where('role', 'admin')->count() <= 1) {
-			return redirect()->route('users.index')->with('error', 'At least one admin account must remain in the system.');
-		}
+    public function reconcilePaymongo(ReconcilePaymongoRequest $request)
+    {
+        $data = $request->validated();
+        $order = $this->orderService->findOrFail((int) $data['order_id']);
+        $result = $this->orderService->reconcilePaymongoOrder($order);
 
-		$user->delete();
+        if (! ($result['success'] ?? false)) {
+            return redirect()->route('admin.orders')->with('error', $result['error'] ?? 'Reconcile failed.');
+        }
 
-		return redirect()->route('users.index')->with('success', 'User deleted successfully.');
-	}
-
-	public function ordersKanban()
-	{
-		$columns = [
-			'placed' => Order::where('status', 'placed')->with(['user', 'restaurant', 'items'])->latest()->get(),
-			'preparing' => Order::where('status', 'preparing')->with(['user', 'restaurant', 'items'])->latest()->get(),
-			'ready' => Order::where('status', 'ready')->with(['user', 'restaurant', 'items'])->latest()->get(),
-			'completed' => Order::where('status', 'completed')->with(['user', 'restaurant', 'items'])->latest()->get(),
-			'cancelled' => Order::where('status', 'cancelled')->with(['user', 'restaurant', 'items'])->latest()->get(),
-		];
-
-		return view('users.orders-kanban', [
-			'columns' => $columns,
-		]);
-	}
-
-	public function updateOrderStatus(Request $request)
-	{
-		$data = $request->validate([
-			'order_id' => ['required', 'exists:orders,id'],
-			'status' => ['required', Rule::in(['placed', 'preparing', 'ready', 'completed', 'cancelled'])],
-		]);
-
-		$order = Order::findOrFail($data['order_id']);
-		$order->update(['status' => $data['status']]);
-
-		return redirect()->route('admin.orders')->with('success', 'Order status updated.');
-	}
-
-	public function reconcilePaymongo(Request $request, \App\Services\OrderService $orderService)
-	{
-		$data = $request->validate([
-			'order_id' => ['required', 'exists:orders,id'],
-		]);
-
-		$order = Order::findOrFail($data['order_id']);
-		$result = $orderService->reconcilePaymongoOrder($order);
-
-		if (!($result['success'] ?? false)) {
-			return redirect()->route('admin.orders')->with('error', $result['error'] ?? 'Reconcile failed.');
-		}
-
-		return redirect()->route('admin.orders')->with('success', $result['message'] ?? 'Payment refreshed from PayMongo.');
-	}
+        return redirect()->route('admin.orders')->with('success', $result['message'] ?? 'Payment refreshed from PayMongo.');
+    }
 }

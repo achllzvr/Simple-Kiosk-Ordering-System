@@ -12,6 +12,15 @@ Guest kiosk ordering on **MySQL**, with admin store management, Leaflet delivery
 - PayMongo Hosted Checkout + webhook + admin reconcile
 - Order tracking via token
 
+## Architecture (UDS-aligned)
+
+- **Thin controllers** → `app/Services/*` (Cart, Menu, Order, Restaurant, User, Admin, PayMongo)
+- **Payment adapter:** `App\Contracts\PaymentGateway` bound to `PayMongoService`
+- **FormRequests** for login, checkout, users, order status, reconcile
+- **Migrations + SoftDeletes** on menu, stores, orders, users
+- **Webhook:** signature verification (fail-closed outside local) + idempotent fulfill
+- **Admin reconcile** when webhooks are unavailable (classroom-friendly)
+
 ## Tech Stack
 
 - Laravel 13 (PHP 8.3+)

@@ -10,9 +10,9 @@
     </div>
 </div>
 
-<div class="row g-5 justify-content-center">
+<div class="row g-4 g-lg-5 justify-content-center align-items-start">
     <!-- Cart Items Section -->
-    <div class="col-lg-8 mb-4">
+    <div class="col-lg-8">
         @if(session('success'))
             <div class="alert alert-success mb-4">{{ session('success') }}</div>
         @endif
@@ -183,12 +183,6 @@
     .cart-total-price {
         font-size: 1.2rem;
         font-weight: 700;
-    }
-
-    .cart-sticky {
-        position: sticky;
-        top: 20px;
-        z-index: 10;
     }
 
     .kfc-header-bg {

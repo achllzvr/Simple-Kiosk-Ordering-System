@@ -1,10 +1,10 @@
 @extends('ordering.layout')
 
 @section('content')
-<div class="container mt-5">
+<div class="admin-page">
     <div class="row mb-4">
         <div class="col-md-12">
-            <h1 class="kfc-heading">Create New Menu Item</h1>
+            <h1 class="page-title text-md-start">Create New Menu Item</h1>
         </div>
     </div>
 
@@ -20,7 +20,7 @@
 
     <div class="row">
         <div class="col-md-6">
-            <form action="{{ route('admin.menu.store') }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('admin.menu.store') }}" method="POST" enctype="multipart/form-data" class="js-guard-submit">
                 @csrf
 
                 <div class="mb-3">

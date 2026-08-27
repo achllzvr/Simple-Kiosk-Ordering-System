@@ -11,9 +11,19 @@ class CartService
 {
     public function getOrCreateCart(?string $sessionId = null): Cart
     {
-        $sessionId = $sessionId ?: session()->getId();
+        $existingId = session('cart_id');
+        if ($existingId) {
+            $existing = Cart::query()->find($existingId);
+            if ($existing) {
+                return $existing;
+            }
+        }
 
-        return Cart::firstOrCreate(['session_id' => $sessionId]);
+        $sessionId = $sessionId ?: (string) session()->getId();
+        $cart = Cart::query()->firstOrCreate(['session_id' => $sessionId]);
+        session(['cart_id' => $cart->id]);
+
+        return $cart;
     }
 
     public function getItems(Cart $cart): array
@@ -91,6 +101,7 @@ class CartService
     public function clear(Cart $cart): void
     {
         $cart->items()->delete();
+        session()->forget('cart_id');
     }
 
     public function isEmpty(Cart $cart): bool

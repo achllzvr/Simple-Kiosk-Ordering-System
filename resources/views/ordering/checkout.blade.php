@@ -10,8 +10,8 @@
     </div>
 </div>
 
-<div class="row justify-content-center">
-    <div class="col-lg-6">
+        <div class="row justify-content-center">
+    <div class="col-lg-6 col-xl-5">
         @if($errors->any())
             <div class="alert alert-danger mb-4">
                 <h6 class="mb-2">Please fix the following:</h6>
@@ -23,14 +23,14 @@
             </div>
         @endif
 
-        <div class="card shadow-sm">
+        <div class="card">
             <div class="card-body p-4">
-                <form method="POST" action="{{ route('place-order') }}">
+                <form method="POST" action="{{ route('place-order') }}" class="js-guard-submit">
                     @csrf
                     <input type="hidden" name="mode" value="{{ $mode }}">
 
                     <div class="mb-4">
-                        <h5 class="kfc-heading">Contact Details</h5>
+                        <h2 class="h5 kfc-heading">Contact Details</h2>
                         <div class="mb-3">
                             <label class="form-label" for="guest_name">Full Name <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="guest_name" name="guest_name" value="{{ old('guest_name') }}" required>
@@ -48,7 +48,7 @@
                     <hr>
 
                     <div class="mb-4">
-                        <h5 class="kfc-heading">Order Information</h5>
+                        <h2 class="h5 kfc-heading">Order Information</h2>
 
                         @if($mode === 'dine-in')
                             <fieldset class="checkout-fieldset mb-3">
@@ -85,14 +85,15 @@
                     <hr>
 
                     <div class="mb-4">
-                        <h5 class="kfc-heading">Payment Method</h5>
+                        <fieldset>
+                            <legend class="h5 kfc-heading">Payment Method</legend>
                         <p class="small text-muted mb-2">
                             Total due: <strong>₱{{ number_format($total ?? 0, 2) }}</strong>
                             @if(!empty($paymongoEnabled))
                                 · Online methods use PayMongo Hosted Checkout
                             @endif
                         </p>
-                        <div class="list-group checkout-list-group">
+                        <div class="list-group checkout-list-group" role="radiogroup" aria-label="Payment method">
                             <label class="list-group-item payment-option">
                                 <input class="form-check-input me-2" type="radio" name="payment_method" value="credit_card" checked>
                                 <span>Credit/Debit Card</span>
@@ -110,6 +111,7 @@
                                 <span>Cash Payment</span>
                             </label>
                         </div>
+                        </fieldset>
                     </div>
 
                     <hr>

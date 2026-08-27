@@ -33,10 +33,10 @@
                         <td>{{ $restaurant->is_active ? 'Yes' : 'No' }}</td>
                         <td class="text-end">
                             <a href="{{ route('admin.restaurants.edit', $restaurant) }}" class="btn btn-sm btn-kfc-outline">Edit</a>
-                            <form action="{{ route('admin.restaurants.destroy', $restaurant) }}" method="POST" class="d-inline" onsubmit="return confirm('Remove this store?')">
+                            <form action="{{ route('admin.restaurants.destroy', $restaurant) }}" method="POST" class="d-inline" data-confirm="Remove this store?">
                                 @csrf
                                 @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger">Delete</button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
                             </form>
                         </td>
                     </tr>

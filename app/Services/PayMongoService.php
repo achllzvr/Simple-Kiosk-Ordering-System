@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\PaymentGateway;
 use App\Models\Order;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -9,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * PayMongo Hosted Checkout (API v2 checkout_sessions) — TAPUS-aligned.
  */
-class PayMongoService
+class PayMongoService implements PaymentGateway
 {
     public function isEnabled(): bool
     {
@@ -162,9 +163,16 @@ class PayMongoService
     {
         $webhookSecret = (string) config('paymongo.webhook_secret');
         if ($webhookSecret === '') {
-            Log::warning('PayMongo webhook: PAYMONGO_WEBHOOK_SECRET not set — skipping verification (dev only).');
+            // UDS: never skip signature verification outside local/testing.
+            if (app()->environment('local', 'testing')) {
+                Log::warning('PayMongo webhook: PAYMONGO_WEBHOOK_SECRET not set — skipping verification (dev only).');
 
-            return true;
+                return true;
+            }
+
+            Log::error('PayMongo webhook rejected: PAYMONGO_WEBHOOK_SECRET is not configured.');
+
+            return false;
         }
 
         if ($signatureHeader === null || $signatureHeader === '') {

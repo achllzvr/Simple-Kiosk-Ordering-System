@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Contracts\PaymentGateway;
 use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\PaymongoWebhookLog;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -13,8 +15,61 @@ class OrderService
 {
     public function __construct(
         private CartService $cartService,
-        private PayMongoService $payMongoService,
+        private PaymentGateway $payMongoService,
     ) {}
+
+    /**
+     * Build guest checkout notes from form fields.
+     *
+     * @param  array{address?: string, seating_option?: string}  $data
+     */
+    public function buildGuestNotes(array $data): ?string
+    {
+        $parts = [];
+        if (! empty($data['address'])) {
+            $parts[] = 'Address/Seat: '.$data['address'];
+        }
+        if (! empty($data['seating_option'])) {
+            $parts[] = 'Seating: '.$data['seating_option'];
+        }
+
+        return $parts === [] ? null : implode(' | ', $parts);
+    }
+
+    /**
+     * @return array<string, Collection<int, Order>>
+     */
+    public function kanbanColumns(): array
+    {
+        $statuses = ['placed', 'preparing', 'ready', 'completed', 'cancelled'];
+        $columns = [];
+
+        foreach ($statuses as $status) {
+            $columns[$status] = Order::query()
+                ->where('status', $status)
+                ->with(['user', 'restaurant', 'items.menuItem'])
+                ->latest()
+                ->get();
+        }
+
+        return $columns;
+    }
+
+    public function findOrFail(int $orderId): Order
+    {
+        return Order::query()->findOrFail($orderId);
+    }
+
+    public function findWithDetails(?int $orderId): ?Order
+    {
+        if (! $orderId) {
+            return null;
+        }
+
+        return Order::query()
+            ->with(['items.menuItem', 'restaurant'])
+            ->find($orderId);
+    }
 
     /**
      * @param  array{

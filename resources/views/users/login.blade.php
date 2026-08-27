@@ -5,7 +5,8 @@
 @section('content')
 <div class="row justify-content-center py-4">
     <div class="col-lg-5">
-        <h1 class="page-title">Login to Continue Ordering</h1>
+        <h1 class="page-title">Admin Login</h1>
+        <p class="text-center text-muted mb-4">Staff access only. Guests can order without an account.</p>
 
         @if(session('success'))
             <div class="alert alert-success">{{ session('success') }}</div>
@@ -23,7 +24,7 @@
 
         <div class="card">
             <div class="card-body p-4">
-                <form method="POST" action="{{ route('login.submit') }}">
+                <form method="POST" action="{{ route('login.submit') }}" class="js-guard-submit">
                     @csrf
 
                     <div class="form-group">
@@ -36,6 +37,7 @@
                             value="{{ old('email') }}"
                             required
                             autofocus
+                            autocomplete="username"
                         >
                     </div>
 
@@ -47,6 +49,7 @@
                             name="password"
                             class="form-control"
                             required
+                            autocomplete="current-password"
                         >
                     </div>
 

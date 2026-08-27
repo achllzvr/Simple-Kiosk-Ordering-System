@@ -50,7 +50,7 @@
                             <td>{{ optional($user->created_at)->format('M d, Y') }}</td>
                             <td class="text-end pe-4">
                                 <a href="{{ route('users.edit', $user) }}" class="btn btn-sm btn-kfc-outline">Edit</a>
-                                <form method="POST" action="{{ route('users.destroy', $user) }}" class="d-inline-block" onsubmit="return confirm('Delete this user account?')">
+                                <form method="POST" action="{{ route('users.destroy', $user) }}" class="d-inline-block" data-confirm="Delete this user account?">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
@@ -68,12 +68,8 @@
     </div>
 </div>
 
-<div class="d-flex gap-2 mt-4">
-    <a href="{{ route('ordering.selection') }}" class="btn btn-kfc">Go to Ordering</a>
-    <a href="{{ route('admin.orders') }}" class="btn btn-kfc-outline">View Orders Kanban</a>
-    <form method="POST" action="{{ route('logout') }}">
-        @csrf
-        <button type="submit" class="btn btn-outline-secondary">Logout</button>
-    </form>
+<div class="d-flex flex-wrap gap-2 mt-4">
+    <a href="{{ route('admin.dashboard') }}" class="btn btn-kfc-outline">Dashboard</a>
+    <a href="{{ route('admin.orders') }}" class="btn btn-kfc-outline">Orders Kanban</a>
 </div>
 @endsection

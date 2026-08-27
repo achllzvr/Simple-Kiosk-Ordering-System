@@ -11,7 +11,7 @@
     </div>
 @endif
 
-<form method="POST" action="{{ route('admin.restaurants.update', $restaurant) }}" class="card">
+<form method="POST" action="{{ route('admin.restaurants.update', $restaurant) }}" class="card form-card-narrow js-guard-submit">
     @csrf
     @method('PUT')
     <div class="card-body">
@@ -34,7 +34,7 @@
             </div>
         </div>
         <div class="mb-3">
-            <div id="admin-store-map" style="height: 320px; border: 3px solid var(--kfc-black); border-radius: 12px;"></div>
+            <div id="admin-store-map" class="map-frame map-frame-sm" role="application" aria-label="Store location map"></div>
             <small class="text-muted">Click the map (or drag the pin) to set coordinates.</small>
         </div>
         <div class="form-check mb-3">

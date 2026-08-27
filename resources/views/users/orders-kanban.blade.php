@@ -16,7 +16,7 @@
     <div class="alert alert-danger">{{ session('error') }}</div>
 @endif
 
-<div class="row g-3">
+<div class="row g-3 kanban-board">
     @foreach($columns as $status => $orders)
         <div class="col-lg-2-4 col-md-6">
             <div class="card h-100">
@@ -25,7 +25,7 @@
                 </div>
                 <div class="card-body p-3">
                     @forelse($orders as $order)
-                        <div class="border rounded p-3 mb-3 bg-light">
+                        <div class="border rounded p-3 mb-3 bg-light kanban-card">
                             <h6 class="mb-2 fw-bold">#{{ $order->id }}</h6>
                             <p class="small mb-1"><strong>Customer:</strong> {{ $order->guest_name ?: ($order->user->name ?? 'Guest') }}</p>
                             <p class="small mb-1"><strong>Phone:</strong> {{ $order->guest_phone ?: '—' }}</p>
@@ -38,10 +38,11 @@
                             <p class="small mb-1"><strong>Items:</strong> {{ $order->items->count() }}</p>
                             <p class="small mb-2"><strong>Ordered:</strong> {{ $order->created_at->format('M d H:i') }}</p>
 
-                            <form method="POST" action="{{ route('admin.orders.status') }}">
+                            <form method="POST" action="{{ route('admin.orders.status') }}" class="js-guard-submit">
                                 @csrf
                                 <input type="hidden" name="order_id" value="{{ $order->id }}">
-                                <select name="status" class="form-select form-select-sm mb-2" required>
+                                <label class="form-label visually-hidden" for="status-{{ $order->id }}">Update status for order {{ $order->id }}</label>
+                                <select id="status-{{ $order->id }}" name="status" class="form-select form-select-sm mb-2" required aria-label="Kitchen status for order {{ $order->id }}">
                                     <option value="placed" @selected($order->status === 'placed')>Placed</option>
                                     <option value="preparing" @selected($order->status === 'preparing')>Preparing</option>
                                     <option value="ready" @selected($order->status === 'ready')>Ready</option>
@@ -51,7 +52,7 @@
                                 <button type="submit" class="btn btn-sm btn-kfc w-100 mb-2">Update</button>
                             </form>
                             @if($order->paymongo_checkout_session_id && $order->payment_status !== 'paid')
-                                <form method="POST" action="{{ route('admin.orders.reconcile') }}">
+                                <form method="POST" action="{{ route('admin.orders.reconcile') }}" class="js-guard-submit">
                                     @csrf
                                     <input type="hidden" name="order_id" value="{{ $order->id }}">
                                     <button type="submit" class="btn btn-sm btn-outline-secondary w-100">Refresh PayMongo</button>
@@ -75,6 +76,15 @@
             flex: 0 0 auto;
             width: 20%;
         }
+    }
+
+    .kanban-card {
+        overflow: visible;
+        word-break: break-word;
+    }
+
+    .kanban-board .card-header {
+        border-bottom: 2px solid var(--kfc-black);
     }
 </style>
 @endsection

@@ -5,26 +5,27 @@
 @section('content')
 
 <!-- Search Section -->
-<div class="row mb-4 search-section">
-    <div class="col-md-8 mx-auto">
+<div class="row mb-4 search-section justify-content-center">
+    <div class="col-12 col-lg-8">
         <h1 class="page-title mb-4">Our Menu</h1>
-        <div class="input-group input-group-lg">
-            <form method="GET" action="{{ route('ordering.menu') }}" class="w-100 d-flex gap-2">
-                <input 
-                    type="hidden" 
-                    name="mode" 
-                    value="{{ $mode }}"
-                >
-                <input 
-                    class="form-control" 
-                    type="text" 
-                    name="search" 
-                    placeholder="Search for food items..." 
-                    value="{{ $search }}"
-                >
-                <button class="btn btn-kfc" type="submit">Search</button>
-            </form>
-        </div>
+        <form method="GET" action="{{ route('ordering.menu') }}" class="d-flex gap-2 flex-wrap flex-sm-nowrap">
+            <input
+                type="hidden"
+                name="mode"
+                value="{{ $mode }}"
+            >
+            <label class="visually-hidden" for="menu-search">Search menu</label>
+            <input
+                id="menu-search"
+                class="form-control"
+                type="search"
+                name="search"
+                placeholder="Search for food items..."
+                value="{{ $search }}"
+                aria-label="Search menu items"
+            >
+            <button class="btn btn-kfc flex-shrink-0" type="submit">Search</button>
+        </form>
     </div>
 </div>
 
